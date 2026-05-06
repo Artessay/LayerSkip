@@ -84,9 +84,10 @@ class GSM8KTask(BaseTask):
     DATASET_PATH = "openai/gsm8k"
     DATASET_NAME = "main"
 
+    _COT_PREAMBLE = "Solve the following math problem step by step."
     _COT_INSTRUCTION = (
-        "Solve the following math problem step by step. "
-        "At the end, write the final answer as: #### <number>\n\n"
+        f"{_COT_PREAMBLE} "
+        "At the end, write the final answer after #### as a numeric value.\n\n"
     )
 
     def __init__(
@@ -129,13 +130,17 @@ class GSM8KTask(BaseTask):
     def construct_requests(
         self, doc: Dict[str, Any], ctx: str
     ) -> List[tuple]:
+        stop_sequences = ["\n\nQuestion:", "\nQuestion:"]
+        if self.chain_of_thought:
+            stop_sequences.append(f"\n{self._COT_PREAMBLE}")
+
         return [
             (
                 ctx,
                 {
                     "max_new_tokens": self.max_new_tokens,
                     "do_sample": False,
-                    "stop_sequences": ["\n\nQuestion:", "\nQuestion:"],
+                    "stop_sequences": stop_sequences,
                 },
             )
         ]

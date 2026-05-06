@@ -275,6 +275,7 @@ class TestGSM8KTask:
         text = task.doc_to_text(doc)
         assert "Question:" in text
         assert "Answer:" in text
+        assert "<number>" not in text
 
     def test_construct_requests_single(self):
         task = GSM8KTask()
@@ -285,6 +286,15 @@ class TestGSM8KTask:
         prompt, gen_kwargs = requests[0]
         assert isinstance(gen_kwargs, dict)
         assert "max_new_tokens" in gen_kwargs
+        assert "\nSolve the following math problem step by step." in gen_kwargs["stop_sequences"]
+
+    def test_construct_requests_without_cot_uses_question_stops(self):
+        task = GSM8KTask(chain_of_thought=False)
+        doc = self._make_doc()
+        ctx = task.doc_to_text(doc)
+        requests = task.construct_requests(doc, ctx)
+        _, gen_kwargs = requests[0]
+        assert gen_kwargs["stop_sequences"] == ["\n\nQuestion:", "\nQuestion:"]
 
     def test_process_results_correct(self):
         task = GSM8KTask()

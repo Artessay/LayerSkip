@@ -19,7 +19,7 @@ def model_basename(model_name: str) -> str:
     normalized = str(model_name).strip().rstrip("/\\").replace("\\", "/")
     if not normalized:
         return "unknown"
-    return slugify(normalized)
+    return Path(normalized).name or slugify(normalized)
 
 
 def config_hash(config: Dict[str, Any]) -> str:
