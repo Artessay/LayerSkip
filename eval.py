@@ -39,6 +39,7 @@ python eval.py \\
 
 import argparse
 import logging
+from pathlib import Path
 from typing import Any, Dict, List
 
 from evaluation.evaluator import Evaluator
@@ -52,6 +53,8 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 logger = logging.getLogger(__name__)
+
+LOCAL_ROOT = Path("/data")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -68,7 +71,8 @@ def build_parser() -> argparse.ArgumentParser:
     model_group.add_argument(
         "--model",
         type=str,
-        default="/data/meta-llama/Llama-3.2-1B-Instruct",
+        default="meta-llama/Meta-Llama-3-8B-Instruct",
+        # default="meta-llama/Llama-3.2-1B-Instruct",
         help=(
             "HuggingFace model identifier or local path. "
             f"Officially supported backbones: {SUPPORTED_MODELS}"
@@ -217,6 +221,11 @@ def build_parser() -> argparse.ArgumentParser:
         default=42,
         help="Random seed (default: 42).",
     )
+    task_group.add_argument(
+        "--local",
+        action="store_true",
+        help="Use /data/<model_or_dataset_id> paths for the model and datasets.",
+    )
 
     # ------------------------------------------------------------------ #
     # Output arguments                                                     #
@@ -276,44 +285,81 @@ def _build_task_kwargs(args: argparse.Namespace) -> Dict[str, Dict[str, Any]]:
     return {task: kwargs for task in args.tasks}
 
 
+def _as_local_path(identifier: str) -> str:
+    path = Path(identifier)
+    if path.is_absolute():
+        return identifier
+    return str(LOCAL_ROOT / identifier)
+
+
+def _apply_local_dataset_paths(task_names: List[str]) -> Dict[str, str]:
+    original_paths: Dict[str, str] = {}
+    for task_name in task_names:
+        if task_name in original_paths:
+            continue
+        task_cls = TASK_REGISTRY[task_name]
+        dataset_path = task_cls.DATASET_PATH
+        original_paths[task_name] = dataset_path
+        task_cls.DATASET_PATH = _as_local_path(dataset_path)
+        logger.info(
+            "Using local dataset path for task '%s': %s",
+            task_name,
+            task_cls.DATASET_PATH,
+        )
+    return original_paths
+
+
+def _restore_dataset_paths(original_paths: Dict[str, str]) -> None:
+    for task_name, dataset_path in original_paths.items():
+        TASK_REGISTRY[task_name].DATASET_PATH = dataset_path
+
+
 def main(argv: List[str] = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
 
     logging.getLogger().setLevel(getattr(logging, args.verbosity))
 
+    if args.local:
+        args.model = _as_local_path(args.model)
+        logger.info("Using local model path: %s", args.model)
+
     strategies = args.strategy
     task_kwargs = _build_task_kwargs(args)
+    original_dataset_paths = _apply_local_dataset_paths(args.tasks) if args.local else {}
 
     all_run_results = []
 
-    for strategy_name in strategies:
-        strategy_kwargs = _build_strategy_kwargs(args, strategy_name)
+    try:
+        for strategy_name in strategies:
+            strategy_kwargs = _build_strategy_kwargs(args, strategy_name)
 
-        logger.info(
-            "Running evaluation: model=%s | strategy=%s | tasks=%s",
-            args.model,
-            strategy_name,
-            args.tasks,
-        )
+            logger.info(
+                "Running evaluation: model=%s | strategy=%s | tasks=%s",
+                args.model,
+                strategy_name,
+                args.tasks,
+            )
 
-        evaluator = Evaluator(
-            model_name=args.model,
-            strategy_name=strategy_name,
-            strategy_kwargs=strategy_kwargs,
-            tasks=args.tasks,
-            task_kwargs=task_kwargs,
-            batch_size=args.batch_size,
-            device=args.device,
-            dtype=args.dtype,
-            max_length=args.max_length,
-            trust_remote_code=args.trust_remote_code,
-            results_dir=args.output,
-        )
+            evaluator = Evaluator(
+                model_name=args.model,
+                strategy_name=strategy_name,
+                strategy_kwargs=strategy_kwargs,
+                tasks=args.tasks,
+                task_kwargs=task_kwargs,
+                batch_size=args.batch_size,
+                device=args.device,
+                dtype=args.dtype,
+                max_length=args.max_length,
+                trust_remote_code=args.trust_remote_code,
+                results_dir=args.output,
+            )
 
-        run_results = evaluator.run()
-        Evaluator.print_results(run_results)
-        all_run_results.append(run_results)
+            run_results = evaluator.run()
+            Evaluator.print_results(run_results)
+            all_run_results.append(run_results)
+    finally:
+        _restore_dataset_paths(original_dataset_paths)
 
     if len(all_run_results) > 1:
         comparison = Evaluator.compare_results(all_run_results)

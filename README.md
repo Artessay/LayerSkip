@@ -21,6 +21,17 @@ different layer-skipping strategies across standard NLP benchmarks.
 | **GSM8K** | Math word problems | Exact match | 8-shot |
 | **HumanEval** | Python code generation | pass@1 | 0-shot |
 
+Datasets can be downloaded ahead of time with ModelScope. Pass `--local` to
+read models and datasets from `/data/<model_or_dataset_id>`.
+
+```bash
+modelscope download --dataset cais/mmlu --local_dir /data/cais/mmlu
+modelscope download --dataset evalscope/hellaswag --local_dir /data/Rowan/hellaswag
+modelscope download --dataset allenai/winogrande --local_dir /data/allenai/winogrande
+modelscope download --dataset openai/gsm8k --local_dir /data/openai/gsm8k
+modelscope download --dataset openai/openai_humaneval --local_dir /data/openai/openai_humaneval
+```
+
 ## Supported Backbone Models
 
 - `meta-llama/Meta-Llama-3-8B-Instruct`
@@ -64,6 +75,7 @@ python eval.py \
   --model meta-llama/Llama-3.2-1B-Instruct \
   --strategy none \
   --tasks mmlu hellaswag \
+  --local \
   --max_samples 200
 ```
 
@@ -150,6 +162,7 @@ python eval.py --help
 | `--max_samples` | all | Per-task example cap |
 | `--num_fewshot` | task default | Override few-shot count for all tasks |
 | `--seed` | `42` | Random seed |
+| `--local` | `False` | Use `/data/<model_or_dataset_id>` paths for the model and datasets |
 
 ### Output arguments
 
