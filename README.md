@@ -1,6 +1,6 @@
-# LayerSkip Evaluation Framework
+# LayerSkip
 
-A **lm-evaluation-harness** style framework for comparing the performance of
+An evaluation framework for comparing the performance of
 different layer-skipping strategies across standard NLP benchmarks.
 
 ## Supported Layer-Skipping Strategies
@@ -9,8 +9,7 @@ different layer-skipping strategies across standard NLP benchmarks.
 |----------|-------------|-----------|
 | **none** | Full model (baseline, no skipping) | – |
 | **layerskip** | Static early exit at a fixed fraction of layers | [Elhoushi et al., 2024](https://arxiv.org/abs/2404.16710) |
-| **caml** | Confidence-Adaptive Multi-Layer: exits when model confidence exceeds a threshold | [Schuster et al., 2022](https://arxiv.org/abs/2207.07061) |
-| **gateskip** | Gate-based skipping: skips layers where the relative hidden-state change is below a threshold | [Laitenberger et al., 2024](https://arxiv.org/abs/2510.13876) |
+| **gateskip** | What Layers When: Learning to Skip Compute in LLMs with Residual Gates | [Laitenberger et al., 2024](https://arxiv.org/abs/2510.13876) |
 
 ## Supported Benchmarks
 
@@ -29,6 +28,11 @@ different layer-skipping strategies across standard NLP benchmarks.
 
 Any HuggingFace causal language model can also be used.
 
+```bash
+modelscope download --model LLM-Research/Meta-Llama-3-8B-Instruct --local_dir /data/meta-llama/Meta-Llama-3-8B-Instruct
+modelscope download --model LLM-Research/Llama-3.2-1B-Instruct --local_dir /data/meta-llama/Llama-3.2-1B-Instruct
+```
+
 ---
 
 ## Installation
@@ -36,6 +40,10 @@ Any HuggingFace causal language model can also be used.
 ```bash
 git clone https://github.com/Artessay/LayerSkip
 cd LayerSkip
+
+conda create -n layer python=3.12 -y
+conda activate layer
+
 pip install -e .
 ```
 

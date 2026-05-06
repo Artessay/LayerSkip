@@ -40,7 +40,6 @@ python eval.py \\
 import argparse
 import json
 import logging
-import sys
 from typing import Any, Dict, List
 
 from evaluation.evaluator import Evaluator
@@ -70,7 +69,7 @@ def build_parser() -> argparse.ArgumentParser:
     model_group.add_argument(
         "--model",
         type=str,
-        required=True,
+        default="/data/meta-llama/Llama-3.2-1B-Instruct",
         help=(
             "HuggingFace model identifier or local path. "
             f"Officially supported backbones: {SUPPORTED_MODELS}"
