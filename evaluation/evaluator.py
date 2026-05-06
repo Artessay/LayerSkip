@@ -19,7 +19,9 @@ from evaluation.tasks import get_task
 from evaluation.tasks.base_task import BaseTask
 from evaluation.utils.result_io import (
     build_task_evaluation_config,
+    model_basename,
     save_task_result,
+    task_samples_path,
 )
 
 logger = logging.getLogger(__name__)
@@ -73,6 +75,7 @@ class Evaluator:
         results_dir: Union[str, Path] = "results",
     ) -> None:
         self.model_name = model_name
+        self.saved_model_name = model_basename(model_name)
         self.strategy_name = strategy_name
         self.strategy_kwargs = strategy_kwargs or {}
         self.task_names = tasks or []
@@ -147,14 +150,13 @@ class Evaluator:
 
         results: Dict[str, Any] = {}
         result_files: Dict[str, str] = {}
+        sample_files: Dict[str, str] = {}
         t0 = time.time()
 
         for task_name in self.task_names:
             logger.info("Evaluating task '%s' …", task_name)
             task = self._build_task(task_name)
             t_task = time.time()
-            task_results = task.evaluate(model)
-            elapsed = time.time() - t_task
             evaluation_config = build_task_evaluation_config(
                 model_name=self.model_name,
                 strategy_name=self.strategy_name,
@@ -169,11 +171,20 @@ class Evaluator:
                 dtype=self.dtype,
                 trust_remote_code=self.trust_remote_code,
             )
+            samples_path = task_samples_path(self.results_dir, evaluation_config)
+            sample_files[task_name] = str(samples_path)
+            task_results = task.evaluate(
+                model,
+                samples_path=samples_path,
+                resume=True,
+            )
+            elapsed = time.time() - t_task
             result_files[task_name] = save_task_result(
                 results_dir=self.results_dir,
                 task_results=task_results,
                 task_elapsed=elapsed,
                 config=evaluation_config,
+                samples_path=samples_path,
             )
             logger.info(
                 "Task '%s' done in %.1f s: %s",
@@ -186,11 +197,12 @@ class Evaluator:
         total_elapsed = time.time() - t0
 
         return {
-            "model": self.model_name,
+            "model": self.saved_model_name,
             "strategy": self.strategy_name,
             "strategy_config": strategy_config,
             "results": results,
             "result_files": result_files,
+            "sample_files": sample_files,
             "elapsed_seconds": round(total_elapsed, 2),
         }
 
