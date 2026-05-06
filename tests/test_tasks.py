@@ -384,6 +384,33 @@ class TestHumanEvalTask:
     def test_name(self):
         assert HumanEvalTask().name == "humaneval"
 
+    def test_load_dataset_uses_local_parquet(self, monkeypatch, tmp_path):
+        import datasets
+
+        data_dir = tmp_path / "openai_humaneval"
+        data_dir.mkdir()
+        parquet_path = data_dir / "test-00000-of-00001.parquet"
+        parquet_path.write_bytes(b"")
+        load_calls = []
+
+        def fake_load_dataset(*args, **kwargs):
+            load_calls.append((args, kwargs))
+            return ["ok"]
+
+        monkeypatch.setattr(datasets, "load_dataset", fake_load_dataset)
+        monkeypatch.setattr(HumanEvalTask, "DATASET_PATH", str(tmp_path))
+
+        assert HumanEvalTask()._load_dataset() == ["ok"]
+        assert load_calls == [
+            (
+                ("parquet",),
+                {
+                    "data_files": {"test": [str(parquet_path)]},
+                    "split": "test",
+                },
+            )
+        ]
+
 
 # ------------------------------------------------------------------ #
 # BaseTask evaluate() with mock model                                  #

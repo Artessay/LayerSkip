@@ -14,8 +14,7 @@ Security note:
 """
 
 import ast
-import contextlib
-import io
+from pathlib import Path
 import re
 import signal
 import subprocess
@@ -112,6 +111,16 @@ class HumanEvalTask(BaseTask):
 
     def _load_dataset(self):
         from datasets import load_dataset
+
+        local_path = Path(self.DATASET_PATH)
+        if local_path.exists():
+            parquet_files = sorted(local_path.rglob("*.parquet"))
+            if parquet_files:
+                return load_dataset(
+                    "parquet",
+                    data_files={"test": [str(path) for path in parquet_files]},
+                    split="test",
+                )
 
         return load_dataset(self.DATASET_PATH, split="test")
 
