@@ -1,9 +1,13 @@
 """Abstract base class and common utilities for evaluation tasks."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+import logging
+from typing import Any, Dict, List, Optional, Tuple
 
 from evaluation.models.base_model import BaseLM
+from evaluation.utils.progress import progress
+
+logger = logging.getLogger(__name__)
 
 
 class BaseTask(ABC):
@@ -44,6 +48,7 @@ class BaseTask(ABC):
         self.max_samples = max_samples
         self.seed = seed
         self._dataset = None
+        self._fewshot_cache: Dict[Tuple[int, int], List[Dict[str, Any]]] = {}
 
     # ------------------------------------------------------------------ #
     # Dataset loading                                                      #
@@ -79,15 +84,24 @@ class BaseTask(ABC):
         """
         return []
 
+    def _get_fewshot_examples(self) -> List[Dict[str, Any]]:
+        cache_key = (self.num_fewshot, self.seed)
+        if cache_key not in self._fewshot_cache:
+            import random
+
+            rng = random.Random(self.seed)
+            self._fewshot_cache[cache_key] = self.fewshot_examples(
+                self.num_fewshot,
+                rng,
+            )
+        return self._fewshot_cache[cache_key]
+
     def fewshot_context(self, doc: Dict[str, Any]) -> str:
         """
         Build a prompt that includes ``num_fewshot`` in-context examples
         followed by the test example.
         """
-        import random
-
-        rng = random.Random(self.seed)
-        examples = self.fewshot_examples(self.num_fewshot, rng)
+        examples = self._get_fewshot_examples()
         prompt_parts = []
         for ex in examples:
             prompt_parts.append(
@@ -163,15 +177,32 @@ class BaseTask(ABC):
             rng = random.Random(self.seed)
             docs = rng.sample(docs, min(self.max_samples, len(docs)))
 
+        if self.num_fewshot:
+            self._get_fewshot_examples()
+
         all_requests = []
         request_doc_map = []  # (doc_idx, request_slice)
 
-        for doc_idx, doc in enumerate(docs):
+        for doc_idx, doc in enumerate(
+            progress(
+                docs,
+                desc=f"{self.name}: build requests",
+                total=len(docs),
+                unit="doc",
+            )
+        ):
             ctx = self.fewshot_context(doc)
             requests = self.construct_requests(doc, ctx)
             start = len(all_requests)
             all_requests.extend(requests)
             request_doc_map.append((doc_idx, start, start + len(requests)))
+
+        logger.info(
+            "Prepared %d docs and %d model requests for task '%s'.",
+            len(docs),
+            len(all_requests),
+            self.name,
+        )
 
         # Determine request type: loglikelihood vs generation
         request_type = self._infer_request_type(all_requests)
@@ -183,7 +214,12 @@ class BaseTask(ABC):
 
         # Aggregate per-example metrics
         metric_lists: Dict[str, list] = {k: [] for k in self.aggregation()}
-        for doc_idx, start, end in request_doc_map:
+        for doc_idx, start, end in progress(
+            request_doc_map,
+            desc=f"{self.name}: aggregate metrics",
+            total=len(request_doc_map),
+            unit="doc",
+        ):
             doc = docs[doc_idx]
             doc_results = raw_results[start:end]
             per_example = self.process_results(doc, doc_results)

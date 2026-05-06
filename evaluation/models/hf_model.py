@@ -22,6 +22,7 @@ import torch.nn.functional as F
 
 from evaluation.models.base_model import BaseLM
 from evaluation.strategies.base_strategy import BaseLayerSkipStrategy
+from evaluation.utils.progress import progress
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +165,13 @@ class HFModel(BaseLM):
         """
         results: List[Tuple[float, bool]] = []
 
-        for i in range(0, len(requests), self._batch_size):
+        batch_offsets = range(0, len(requests), self._batch_size)
+        for i in progress(
+            batch_offsets,
+            desc="model: loglikelihood",
+            total=len(batch_offsets),
+            unit="batch",
+        ):
             batch = requests[i : i + self._batch_size]
             batch_results = self._loglikelihood_batch(batch)
             results.extend(batch_results)
@@ -275,7 +282,12 @@ class HFModel(BaseLM):
             * ``stop_sequences`` (list of str, default [])
         """
         results: List[str] = []
-        for prompt, gen_kwargs in requests:
+        for prompt, gen_kwargs in progress(
+            requests,
+            desc="model: generate",
+            total=len(requests),
+            unit="sample",
+        ):
             output = self._generate_single(prompt, gen_kwargs)
             results.append(output)
         return results

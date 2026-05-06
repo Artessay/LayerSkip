@@ -11,6 +11,7 @@ Reference:
 from typing import Any, Dict, List, Optional
 
 from evaluation.tasks.base_task import BaseTask
+from evaluation.utils.progress import progress
 
 _CHOICES = ["A", "B", "C", "D"]
 
@@ -69,7 +70,12 @@ class MMLUTask(BaseTask):
         from datasets import load_dataset, concatenate_datasets
 
         splits = []
-        for subject in self.subjects:
+        for subject in progress(
+            self.subjects,
+            desc="mmlu: load test subjects",
+            total=len(self.subjects),
+            unit="subject",
+        ):
             ds = load_dataset(self.DATASET_PATH, subject, split="test")
             splits.append(ds)
         return concatenate_datasets(splits) if len(splits) > 1 else splits[0]
@@ -78,7 +84,12 @@ class MMLUTask(BaseTask):
         from datasets import load_dataset, concatenate_datasets
 
         splits = []
-        for subject in self.subjects:
+        for subject in progress(
+            self.subjects,
+            desc="mmlu: load dev subjects",
+            total=len(self.subjects),
+            unit="subject",
+        ):
             ds = load_dataset(self.DATASET_PATH, subject, split="dev")
             splits.append(ds)
         return concatenate_datasets(splits) if len(splits) > 1 else splits[0]
