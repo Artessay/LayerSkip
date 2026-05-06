@@ -44,8 +44,6 @@ class HFModel(BaseLM):
         device: Target device string (e.g. ``"cuda:0"`` or ``"cpu"``).
         batch_size: Batch size used during loglikelihood evaluation.
         dtype: Model dtype (``"auto"``, ``"float16"``, ``"bfloat16"``, etc.).
-        max_length: Maximum sequence length. Sequences longer than this are
-            truncated from the left.
         trust_remote_code: Passed to ``AutoModel.from_pretrained``.
     """
 
@@ -56,7 +54,6 @@ class HFModel(BaseLM):
         device: str = "auto",
         batch_size: int = 1,
         dtype: str = "auto",
-        max_length: int = 2048,
         trust_remote_code: bool = False,
     ) -> None:
         from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -68,7 +65,6 @@ class HFModel(BaseLM):
         self.strategy = strategy
         self._device = device
         self._batch_size = batch_size
-        self.max_length = max_length
 
         logger.info("Loading tokenizer for %s …", model_name)
         self.tokenizer = AutoTokenizer.from_pretrained(
@@ -93,6 +89,8 @@ class HFModel(BaseLM):
             trust_remote_code=trust_remote_code,
         )
         self.model.eval()
+        if getattr(self.model, "generation_config", None) is not None:
+            self.model.generation_config.max_length = None
 
         self._num_layers: int = self.model.config.num_hidden_layers
         self._use_strategy: bool = strategy is not None
@@ -197,9 +195,6 @@ class HFModel(BaseLM):
         cont_lengths = []
         for ctx_ids, cont_ids in zip(ctx_encodings, cont_encodings):
             full = ctx_ids + cont_ids
-            # Truncate from left if too long
-            if len(full) > self.max_length:
-                full = full[-(self.max_length):]
             full_ids.append(full)
             cont_lengths.append(len(cont_ids))
 
@@ -303,8 +298,6 @@ class HFModel(BaseLM):
         inputs = self.tokenizer(
             prompt,
             return_tensors="pt",
-            truncation=True,
-            max_length=self.max_length,
         ).to(self._device)
 
         input_len = inputs["input_ids"].shape[1]
@@ -339,7 +332,11 @@ class HFModel(BaseLM):
                 )
             generated_ids = output_ids[0, input_len:]
 
-        text = self.tokenizer.decode(generated_ids, skip_special_tokens=True)
+        text = self.tokenizer.decode(
+            generated_ids,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False,
+        )
 
         # Apply stop sequences
         for stop in stop_sequences:
@@ -410,7 +407,11 @@ class HFModel(BaseLM):
                 break
 
             # Check stop sequences
-            decoded_so_far = self.tokenizer.decode(generated, skip_special_tokens=True)
+            decoded_so_far = self.tokenizer.decode(
+                generated,
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=False,
+            )
             if any(s in decoded_so_far for s in stop_sequences):
                 break
 

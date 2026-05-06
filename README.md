@@ -143,7 +143,6 @@ python eval.py --help
 | `--dtype` | `auto` | `auto`, `float16`, `bfloat16`, `float32` |
 | `--device` | `auto` | `cuda`, `cuda:0`, `cpu`, etc. |
 | `--batch_size` | `1` | Batch size for loglikelihood evaluation |
-| `--max_length` | `2048` | Maximum token sequence length |
 | `--trust_remote_code` | `False` | Allow remote code execution |
 
 ### Strategy arguments

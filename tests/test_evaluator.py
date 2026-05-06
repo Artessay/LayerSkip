@@ -248,7 +248,6 @@ class TestEvaluatorRun:
             batch_size=2,
             device="cpu",
             dtype="float16",
-            max_length=512,
             trust_remote_code=True,
             results_dir=tmp_path,
         )
@@ -267,5 +266,5 @@ class TestEvaluatorRun:
             assert saved["results"] == result["results"][task_name]
             assert saved["evaluation_config"]["strategy"]["kwargs"] == {"exit_ratio": 0.6}
             assert saved["evaluation_config"]["runtime"]["batch_size"] == 2
-            assert saved["evaluation_config"]["runtime"]["max_length"] == 512
+            assert "max_length" not in saved["evaluation_config"]["runtime"]
             assert saved["evaluation_config"]["task"]["resolved_kwargs"]["max_samples"] == 10

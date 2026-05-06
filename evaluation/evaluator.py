@@ -55,7 +55,6 @@ class Evaluator:
         batch_size: Batch size for loglikelihood evaluation.
         device: Target device (``"cuda"``, ``"cuda:0"``, ``"cpu"``, …).
         dtype: Model dtype string (``"auto"``, ``"float16"``, ``"bfloat16"``).
-        max_length: Maximum token sequence length.
         trust_remote_code: Passed to ``AutoModel.from_pretrained``.
         results_dir: Directory where each task's result JSON is saved.
     """
@@ -70,7 +69,6 @@ class Evaluator:
         batch_size: int = 1,
         device: str = "auto",
         dtype: str = "auto",
-        max_length: int = 2048,
         trust_remote_code: bool = False,
         results_dir: Union[str, Path] = "results",
     ) -> None:
@@ -81,7 +79,6 @@ class Evaluator:
         self.task_kwargs = task_kwargs or {}
         self.batch_size = batch_size
         self.dtype = dtype
-        self.max_length = max_length
         self.trust_remote_code = trust_remote_code
         self.requested_device = device
         self.results_dir = Path(results_dir)
@@ -105,7 +102,6 @@ class Evaluator:
             device=self.device,
             batch_size=self.batch_size,
             dtype=self.dtype,
-            max_length=self.max_length,
             trust_remote_code=self.trust_remote_code,
         )
 
@@ -171,7 +167,6 @@ class Evaluator:
                 device=self.device,
                 requested_device=self.requested_device,
                 dtype=self.dtype,
-                max_length=self.max_length,
                 trust_remote_code=self.trust_remote_code,
             )
             result_files[task_name] = save_task_result(

@@ -33,7 +33,6 @@ def build_task_evaluation_config(
     device: str,
     requested_device: str,
     dtype: str,
-    max_length: int,
     trust_remote_code: bool,
 ) -> Dict[str, Any]:
     return {
@@ -57,7 +56,6 @@ def build_task_evaluation_config(
             "device": device,
             "requested_device": requested_device,
             "dtype": dtype,
-            "max_length": max_length,
             "trust_remote_code": trust_remote_code,
         },
     }

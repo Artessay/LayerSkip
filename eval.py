@@ -98,12 +98,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Batch size for loglikelihood evaluation (default: 1).",
     )
     model_group.add_argument(
-        "--max_length",
-        type=int,
-        default=2048,
-        help="Maximum token sequence length (default: 2048).",
-    )
-    model_group.add_argument(
         "--trust_remote_code",
         action="store_true",
         help="Allow executing remote code when loading the model.",
@@ -350,7 +344,6 @@ def main(argv: List[str] = None) -> None:
                 batch_size=args.batch_size,
                 device=args.device,
                 dtype=args.dtype,
-                max_length=args.max_length,
                 trust_remote_code=args.trust_remote_code,
                 results_dir=args.output,
             )
