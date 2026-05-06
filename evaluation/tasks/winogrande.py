@@ -36,7 +36,7 @@ class WinoGrandeTask(BaseTask):
     def __init__(
         self,
         size: str = "winogrande_xl",
-        num_fewshot: int = 0,
+        num_fewshot: int = 5,
         max_samples: Optional[int] = None,
         seed: int = 42,
     ) -> None:

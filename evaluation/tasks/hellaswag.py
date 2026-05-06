@@ -9,6 +9,7 @@ Reference:
 """
 
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from evaluation.tasks.base_task import BaseTask
@@ -53,6 +54,16 @@ class HellaSwagTask(BaseTask):
 
     def _load_dataset(self):
         from datasets import load_dataset
+
+        local_path = Path(self.DATASET_PATH)
+        if local_path.exists():
+            validation_files = sorted(local_path.rglob("validation-*.parquet"))
+            if validation_files:
+                return load_dataset(
+                    "parquet",
+                    data_files={"validation": [str(path) for path in validation_files]},
+                    split="validation",
+                )
 
         return load_dataset(self.DATASET_PATH, split="validation")
 

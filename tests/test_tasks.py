@@ -1,8 +1,7 @@
 """Tests for evaluation task implementations (using mock data)."""
 
 import pytest
-from unittest.mock import MagicMock, patch
-from typing import Any, Dict, List
+from unittest.mock import MagicMock
 
 from evaluation.tasks import get_task, TASK_REGISTRY
 from evaluation.tasks.base_task import BaseTask
@@ -187,6 +186,36 @@ class TestHellaSwagTask:
         results = [(-4.0, False), (-3.0, False), (-1.0, True), (-5.0, False)]
         out = task.process_results(doc, results)
         assert out["accuracy"] == 1
+
+    def test_load_dataset_uses_local_validation_parquet(self, monkeypatch, tmp_path):
+        import datasets
+
+        data_dir = tmp_path / "data"
+        data_dir.mkdir()
+        train_path = data_dir / "train-00000-of-00001.parquet"
+        validation_path = data_dir / "validation-00000-of-00001.parquet"
+        test_path = data_dir / "test-00000-of-00001.parquet"
+        for path in (train_path, validation_path, test_path):
+            path.write_bytes(b"")
+        load_calls = []
+
+        def fake_load_dataset(*args, **kwargs):
+            load_calls.append((args, kwargs))
+            return ["ok"]
+
+        monkeypatch.setattr(datasets, "load_dataset", fake_load_dataset)
+        monkeypatch.setattr(HellaSwagTask, "DATASET_PATH", str(tmp_path))
+
+        assert HellaSwagTask()._load_dataset() == ["ok"]
+        assert load_calls == [
+            (
+                ("parquet",),
+                {
+                    "data_files": {"validation": [str(validation_path)]},
+                    "split": "validation",
+                },
+            )
+        ]
 
     def test_name(self):
         assert HellaSwagTask().name == "hellaswag"
