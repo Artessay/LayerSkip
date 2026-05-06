@@ -1,0 +1,331 @@
+#!/usr/bin/env python3
+"""
+LayerSkip Evaluation Framework – Command-Line Interface
+
+Evaluate language models with different layer-skipping strategies on standard
+NLP benchmarks.
+
+Examples
+--------
+# Evaluate Llama-3.2-1B with no layer skipping on MMLU and HellaSwag:
+python eval.py \\
+    --model meta-llama/Llama-3.2-1B-Instruct \\
+    --strategy none \\
+    --tasks mmlu hellaswag \\
+    --max_samples 100
+
+# Compare all three strategies on WinoGrande with Llama-3-8B:
+python eval.py \\
+    --model meta-llama/Meta-Llama-3-8B-Instruct \\
+    --strategy layerskip caml gateskip \\
+    --tasks winogrande \\
+    --batch_size 4 \\
+    --output results.json
+
+# LayerSkip with a custom exit ratio:
+python eval.py \\
+    --model meta-llama/Llama-3.2-1B-Instruct \\
+    --strategy layerskip \\
+    --layerskip_exit_ratio 0.5 \\
+    --tasks mmlu hellaswag winogrande gsm8k humaneval
+
+# CAML with a custom confidence threshold:
+python eval.py \\
+    --model meta-llama/Llama-3.2-1B-Instruct \\
+    --strategy caml \\
+    --caml_confidence_threshold 0.85 \\
+    --tasks mmlu
+"""
+
+import argparse
+import json
+import logging
+import sys
+from typing import Any, Dict, List
+
+from evaluation.evaluator import Evaluator
+from evaluation.strategies import STRATEGY_REGISTRY
+from evaluation.tasks import TASK_REGISTRY
+from evaluation.models.hf_model import SUPPORTED_MODELS
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%H:%M:%S",
+)
+logger = logging.getLogger(__name__)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="LayerSkip LLM Evaluation Framework",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=__doc__,
+    )
+
+    # ------------------------------------------------------------------ #
+    # Model arguments                                                      #
+    # ------------------------------------------------------------------ #
+    model_group = parser.add_argument_group("Model")
+    model_group.add_argument(
+        "--model",
+        type=str,
+        required=True,
+        help=(
+            "HuggingFace model identifier or local path. "
+            f"Officially supported backbones: {SUPPORTED_MODELS}"
+        ),
+    )
+    model_group.add_argument(
+        "--dtype",
+        type=str,
+        default="auto",
+        choices=["auto", "float16", "bfloat16", "float32"],
+        help="Model dtype (default: auto).",
+    )
+    model_group.add_argument(
+        "--device",
+        type=str,
+        default="auto",
+        help="Target device, e.g. 'cuda', 'cuda:0', 'cpu' (default: auto).",
+    )
+    model_group.add_argument(
+        "--batch_size",
+        type=int,
+        default=1,
+        help="Batch size for loglikelihood evaluation (default: 1).",
+    )
+    model_group.add_argument(
+        "--max_length",
+        type=int,
+        default=2048,
+        help="Maximum token sequence length (default: 2048).",
+    )
+    model_group.add_argument(
+        "--trust_remote_code",
+        action="store_true",
+        help="Allow executing remote code when loading the model.",
+    )
+
+    # ------------------------------------------------------------------ #
+    # Strategy arguments                                                   #
+    # ------------------------------------------------------------------ #
+    strategy_group = parser.add_argument_group("Layer Skipping Strategy")
+    strategy_group.add_argument(
+        "--strategy",
+        nargs="+",
+        default=["none"],
+        choices=list(STRATEGY_REGISTRY.keys()),
+        help=(
+            "One or more layer-skipping strategies to evaluate. "
+            "When multiple strategies are specified all are run and results "
+            "are compared. (default: none)"
+        ),
+    )
+    # LayerSkip-specific
+    strategy_group.add_argument(
+        "--layerskip_exit_ratio",
+        type=float,
+        default=0.75,
+        metavar="RATIO",
+        help="LayerSkip: fraction of layers to execute (default: 0.75).",
+    )
+    strategy_group.add_argument(
+        "--layerskip_min_layers",
+        type=int,
+        default=4,
+        metavar="N",
+        help="LayerSkip: minimum number of layers to always execute (default: 4).",
+    )
+    # CAML-specific
+    strategy_group.add_argument(
+        "--caml_confidence_threshold",
+        type=float,
+        default=0.9,
+        metavar="THRESH",
+        help="CAML: confidence threshold for early exit (default: 0.9).",
+    )
+    strategy_group.add_argument(
+        "--caml_min_layers",
+        type=int,
+        default=4,
+        metavar="N",
+        help="CAML: minimum layers before considering exit (default: 4).",
+    )
+    strategy_group.add_argument(
+        "--caml_check_every",
+        type=int,
+        default=1,
+        metavar="N",
+        help="CAML: check confidence every N layers (default: 1).",
+    )
+    # GateSkip-specific
+    strategy_group.add_argument(
+        "--gateskip_gate_threshold",
+        type=float,
+        default=0.01,
+        metavar="THRESH",
+        help="GateSkip: relative-change threshold for skippable layers (default: 0.01).",
+    )
+    strategy_group.add_argument(
+        "--gateskip_skip_budget",
+        type=float,
+        default=0.3,
+        metavar="BUDGET",
+        help="GateSkip: max fraction of layers to skip (default: 0.3).",
+    )
+    strategy_group.add_argument(
+        "--gateskip_min_layers",
+        type=int,
+        default=4,
+        metavar="N",
+        help="GateSkip: minimum layers before skipping is considered (default: 4).",
+    )
+
+    # ------------------------------------------------------------------ #
+    # Task arguments                                                       #
+    # ------------------------------------------------------------------ #
+    task_group = parser.add_argument_group("Tasks")
+    task_group.add_argument(
+        "--tasks",
+        nargs="+",
+        default=["mmlu"],
+        choices=list(TASK_REGISTRY.keys()),
+        help=(
+            "One or more tasks to evaluate on. "
+            f"Available: {list(TASK_REGISTRY.keys())} (default: mmlu)"
+        ),
+    )
+    task_group.add_argument(
+        "--max_samples",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Cap on the number of evaluation examples per task (default: all).",
+    )
+    task_group.add_argument(
+        "--num_fewshot",
+        type=int,
+        default=None,
+        metavar="K",
+        help=(
+            "Override the default number of few-shot examples for all tasks. "
+            "When not set, task-specific defaults are used."
+        ),
+    )
+    task_group.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="Random seed (default: 42).",
+    )
+
+    # ------------------------------------------------------------------ #
+    # Output arguments                                                     #
+    # ------------------------------------------------------------------ #
+    out_group = parser.add_argument_group("Output")
+    out_group.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        metavar="PATH",
+        help="Save results to a JSON file at this path.",
+    )
+    out_group.add_argument(
+        "--verbosity",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        help="Logging verbosity (default: INFO).",
+    )
+
+    return parser
+
+
+def _build_strategy_kwargs(args: argparse.Namespace, strategy_name: str) -> Dict[str, Any]:
+    """Extract strategy-specific kwargs from parsed args."""
+    if strategy_name == "layerskip":
+        return {
+            "exit_ratio": args.layerskip_exit_ratio,
+            "min_layers": args.layerskip_min_layers,
+        }
+    if strategy_name == "caml":
+        return {
+            "confidence_threshold": args.caml_confidence_threshold,
+            "min_layers": args.caml_min_layers,
+            "check_every": args.caml_check_every,
+        }
+    if strategy_name == "gateskip":
+        return {
+            "gate_threshold": args.gateskip_gate_threshold,
+            "skip_budget": args.gateskip_skip_budget,
+            "min_layers": args.gateskip_min_layers,
+        }
+    return {}
+
+
+def _build_task_kwargs(args: argparse.Namespace) -> Dict[str, Dict[str, Any]]:
+    """Build per-task kwargs dict from CLI args."""
+    kwargs: Dict[str, Any] = {}
+    if args.max_samples is not None:
+        kwargs["max_samples"] = args.max_samples
+    if args.num_fewshot is not None:
+        kwargs["num_fewshot"] = args.num_fewshot
+    kwargs["seed"] = args.seed
+    return {task: kwargs for task in args.tasks}
+
+
+def main(argv: List[str] = None) -> None:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    logging.getLogger().setLevel(getattr(logging, args.verbosity))
+
+    strategies = args.strategy
+    task_kwargs = _build_task_kwargs(args)
+
+    all_run_results = []
+
+    for strategy_name in strategies:
+        strategy_kwargs = _build_strategy_kwargs(args, strategy_name)
+
+        logger.info(
+            "Running evaluation: model=%s | strategy=%s | tasks=%s",
+            args.model,
+            strategy_name,
+            args.tasks,
+        )
+
+        evaluator = Evaluator(
+            model_name=args.model,
+            strategy_name=strategy_name,
+            strategy_kwargs=strategy_kwargs,
+            tasks=args.tasks,
+            task_kwargs=task_kwargs,
+            batch_size=args.batch_size,
+            device=args.device,
+            dtype=args.dtype,
+            max_length=args.max_length,
+            trust_remote_code=args.trust_remote_code,
+        )
+
+        run_results = evaluator.run()
+        Evaluator.print_results(run_results)
+        all_run_results.append(run_results)
+
+    if len(all_run_results) > 1:
+        comparison = Evaluator.compare_results(all_run_results)
+        print("\n--- Strategy Comparison ---")
+        Evaluator.print_comparison(comparison)
+
+    if args.output:
+        output_data = (
+            all_run_results[0] if len(all_run_results) == 1 else all_run_results
+        )
+        with open(args.output, "w") as f:
+            json.dump(output_data, f, indent=2)
+        logger.info("Results written to %s", args.output)
+
+
+if __name__ == "__main__":
+    main()
