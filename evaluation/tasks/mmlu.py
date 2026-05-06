@@ -70,7 +70,7 @@ class MMLUTask(BaseTask):
 
         splits = []
         for subject in self.subjects:
-            ds = load_dataset(self.DATASET_PATH, subject, split="test", trust_remote_code=True)
+            ds = load_dataset(self.DATASET_PATH, subject, split="test")
             splits.append(ds)
         return concatenate_datasets(splits) if len(splits) > 1 else splits[0]
 
@@ -79,7 +79,7 @@ class MMLUTask(BaseTask):
 
         splits = []
         for subject in self.subjects:
-            ds = load_dataset(self.DATASET_PATH, subject, split="dev", trust_remote_code=True)
+            ds = load_dataset(self.DATASET_PATH, subject, split="dev")
             splits.append(ds)
         return concatenate_datasets(splits) if len(splits) > 1 else splits[0]
 

@@ -54,7 +54,7 @@ class HellaSwagTask(BaseTask):
     def _load_dataset(self):
         from datasets import load_dataset
 
-        return load_dataset(self.DATASET_PATH, split="validation", trust_remote_code=True)
+        return load_dataset(self.DATASET_PATH, split="validation")
 
     def doc_to_text(self, doc: Dict[str, Any]) -> str:
         ctx = _preprocess(doc["ctx"])

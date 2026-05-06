@@ -46,9 +46,7 @@ class WinoGrandeTask(BaseTask):
     def _load_dataset(self):
         from datasets import load_dataset
 
-        return load_dataset(
-            self.DATASET_PATH, self.size, split="validation", trust_remote_code=True
-        )
+        return load_dataset(self.DATASET_PATH, self.size, split="validation")
 
     def _partial_context(self, doc: Dict[str, Any], option: str) -> str:
         """Replace ``_`` with the given option in the sentence."""

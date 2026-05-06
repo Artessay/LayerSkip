@@ -9,7 +9,7 @@ setup(
     install_requires=[
         "torch>=2.0.0",
         "transformers>=4.40.0",
-        "datasets>=2.14.0",
+        "datasets>=4.8.0,<5.0.0",
         "accelerate>=0.28.0",
         "numpy>=1.24.0",
         "tqdm>=4.65.0",

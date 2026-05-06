@@ -113,7 +113,7 @@ class HumanEvalTask(BaseTask):
     def _load_dataset(self):
         from datasets import load_dataset
 
-        return load_dataset(self.DATASET_PATH, split="test", trust_remote_code=True)
+        return load_dataset(self.DATASET_PATH, split="test")
 
     def doc_to_text(self, doc: Dict[str, Any]) -> str:
         return doc["prompt"]

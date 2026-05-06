@@ -41,6 +41,47 @@ def test_get_task_kwargs_override():
     assert task.max_samples == 50
 
 
+@pytest.mark.parametrize(
+    "task_factory,method_name",
+    [
+        pytest.param(
+            lambda: MMLUTask(subjects=["abstract_algebra"]),
+            "_load_dataset",
+            id="mmlu-test",
+        ),
+        pytest.param(
+            lambda: MMLUTask(subjects=["abstract_algebra"]),
+            "_load_fewshot_dataset",
+            id="mmlu-dev",
+        ),
+        pytest.param(lambda: HellaSwagTask(), "_load_dataset", id="hellaswag"),
+        pytest.param(lambda: WinoGrandeTask(), "_load_dataset", id="winogrande"),
+        pytest.param(lambda: GSM8KTask(), "_load_dataset", id="gsm8k-test"),
+        pytest.param(lambda: GSM8KTask(), "_load_fewshot_dataset", id="gsm8k-train"),
+        pytest.param(lambda: HumanEvalTask(), "_load_dataset", id="humaneval"),
+    ],
+)
+def test_dataset_loaders_do_not_pass_trust_remote_code(
+    monkeypatch, task_factory, method_name
+):
+    import datasets
+
+    load_calls = []
+
+    def fake_load_dataset(*args, **kwargs):
+        load_calls.append((args, kwargs))
+        return []
+
+    monkeypatch.setattr(datasets, "load_dataset", fake_load_dataset)
+
+    getattr(task_factory(), method_name)()
+
+    assert load_calls
+    for call_args, call_kwargs in load_calls:
+        assert call_args
+        assert "trust_remote_code" not in call_kwargs
+
+
 # ------------------------------------------------------------------ #
 # MMLU task                                                            #
 # ------------------------------------------------------------------ #

@@ -104,16 +104,12 @@ class GSM8KTask(BaseTask):
     def _load_dataset(self):
         from datasets import load_dataset
 
-        return load_dataset(
-            self.DATASET_PATH, self.DATASET_NAME, split="test", trust_remote_code=True
-        )
+        return load_dataset(self.DATASET_PATH, self.DATASET_NAME, split="test")
 
     def _load_fewshot_dataset(self):
         from datasets import load_dataset
 
-        return load_dataset(
-            self.DATASET_PATH, self.DATASET_NAME, split="train", trust_remote_code=True
-        )
+        return load_dataset(self.DATASET_PATH, self.DATASET_NAME, split="train")
 
     def fewshot_examples(self, k: int, rng) -> List[Dict[str, Any]]:
         if k == 0:
