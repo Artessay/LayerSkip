@@ -8,8 +8,8 @@ printed, saved to JSON, or compared across runs.
 
 from __future__ import annotations
 
-import json
 import logging
+from pathlib import Path
 import time
 from typing import Any, Dict, List, Optional, Union
 
@@ -17,6 +17,10 @@ from evaluation.models.hf_model import HFModel
 from evaluation.strategies import get_strategy
 from evaluation.tasks import get_task
 from evaluation.tasks.base_task import BaseTask
+from evaluation.utils.result_io import (
+    build_task_evaluation_config,
+    save_task_result,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +57,7 @@ class Evaluator:
         dtype: Model dtype string (``"auto"``, ``"float16"``, ``"bfloat16"``).
         max_length: Maximum token sequence length.
         trust_remote_code: Passed to ``AutoModel.from_pretrained``.
+        results_dir: Directory where each task's result JSON is saved.
     """
 
     def __init__(
@@ -67,6 +72,7 @@ class Evaluator:
         dtype: str = "auto",
         max_length: int = 2048,
         trust_remote_code: bool = False,
+        results_dir: Union[str, Path] = "results",
     ) -> None:
         self.model_name = model_name
         self.strategy_name = strategy_name
@@ -77,6 +83,8 @@ class Evaluator:
         self.dtype = dtype
         self.max_length = max_length
         self.trust_remote_code = trust_remote_code
+        self.requested_device = device
+        self.results_dir = Path(results_dir)
 
         import torch
 
@@ -142,6 +150,7 @@ class Evaluator:
             strategy_config = model.strategy.config
 
         results: Dict[str, Any] = {}
+        result_files: Dict[str, str] = {}
         t0 = time.time()
 
         for task_name in self.task_names:
@@ -150,6 +159,27 @@ class Evaluator:
             t_task = time.time()
             task_results = task.evaluate(model)
             elapsed = time.time() - t_task
+            evaluation_config = build_task_evaluation_config(
+                model_name=self.model_name,
+                strategy_name=self.strategy_name,
+                strategy_kwargs=self.strategy_kwargs,
+                strategy_config=strategy_config,
+                task_name=task_name,
+                task=task,
+                task_kwargs=self.task_kwargs,
+                batch_size=self.batch_size,
+                device=self.device,
+                requested_device=self.requested_device,
+                dtype=self.dtype,
+                max_length=self.max_length,
+                trust_remote_code=self.trust_remote_code,
+            )
+            result_files[task_name] = save_task_result(
+                results_dir=self.results_dir,
+                task_results=task_results,
+                task_elapsed=elapsed,
+                config=evaluation_config,
+            )
             logger.info(
                 "Task '%s' done in %.1f s: %s",
                 task_name,
@@ -165,6 +195,7 @@ class Evaluator:
             "strategy": self.strategy_name,
             "strategy_config": strategy_config,
             "results": results,
+            "result_files": result_files,
             "elapsed_seconds": round(total_elapsed, 2),
         }
 
@@ -192,13 +223,6 @@ class Evaluator:
         elapsed = eval_output.get("elapsed_seconds", 0)
         print(f"\nTotal elapsed: {elapsed:.1f} s")
         print("=" * 60 + "\n")
-
-    @staticmethod
-    def save_results(eval_output: Dict[str, Any], path: str) -> None:
-        """Save evaluation results to a JSON file."""
-        with open(path, "w") as f:
-            json.dump(eval_output, f, indent=2)
-        logger.info("Results saved to %s", path)
 
     @staticmethod
     def compare_results(

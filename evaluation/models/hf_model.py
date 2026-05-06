@@ -19,7 +19,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import torch
 import torch.nn.functional as F
-from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationConfig
 
 from evaluation.models.base_model import BaseLM
 from evaluation.strategies.base_strategy import BaseLayerSkipStrategy
@@ -53,12 +52,17 @@ class HFModel(BaseLM):
         self,
         model_name: str,
         strategy: Optional[BaseLayerSkipStrategy] = None,
-        device: str = "cuda" if torch.cuda.is_available() else "cpu",
+        device: str = "auto",
         batch_size: int = 1,
         dtype: str = "auto",
         max_length: int = 2048,
         trust_remote_code: bool = False,
     ) -> None:
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+
+        if device == "auto":
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+
         self.model_name = model_name
         self.strategy = strategy
         self._device = device
@@ -306,6 +310,8 @@ class HFModel(BaseLM):
                 stop_sequences=stop_sequences,
             )
         else:
+            from transformers import GenerationConfig
+
             gen_config = GenerationConfig(
                 max_new_tokens=max_new_tokens,
                 temperature=temperature if do_sample else 1.0,

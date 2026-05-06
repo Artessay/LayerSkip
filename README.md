@@ -85,7 +85,7 @@ python eval.py \
   --strategy none layerskip caml gateskip \
   --tasks mmlu hellaswag winogrande \
   --batch_size 4 \
-  --output comparison_results.json
+  --output results
 ```
 
 ### CAML with custom confidence threshold
@@ -155,7 +155,7 @@ python eval.py --help
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--output` | none | Save results JSON to this path |
+| `--output` | `results` | Directory for per-task JSON files. Each model/task/strategy/config setting is saved separately by default |
 | `--verbosity` | `INFO` | `DEBUG`, `INFO`, `WARNING`, `ERROR` |
 
 ---

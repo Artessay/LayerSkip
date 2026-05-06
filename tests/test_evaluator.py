@@ -1,14 +1,17 @@
 """Tests for the Evaluator orchestrator."""
 
 import json
-import os
-import tempfile
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from evaluation.evaluator import Evaluator
-from evaluation.strategies import get_strategy
+
+
+@pytest.fixture(autouse=True)
+def mock_cuda_auto_detection():
+    with patch("torch.cuda.is_available", return_value=False):
+        yield
 
 
 class TestEvaluatorCompare:
@@ -51,25 +54,6 @@ class TestEvaluatorCompare:
     def test_compare_results_empty(self):
         cmp = Evaluator.compare_results([])
         assert cmp == {}
-
-    def test_save_results_json(self):
-        result = {
-            "model": "test",
-            "strategy": "none",
-            "strategy_config": {},
-            "results": {"mmlu": {"accuracy": 0.7}},
-            "elapsed_seconds": 1.0,
-        }
-        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as tmp:
-            path = tmp.name
-        try:
-            Evaluator.save_results(result, path)
-            with open(path) as f:
-                loaded = json.load(f)
-            assert loaded["model"] == "test"
-            assert loaded["results"]["mmlu"]["accuracy"] == pytest.approx(0.7)
-        finally:
-            os.unlink(path)
 
 
 class TestEvaluatorPrint:
@@ -179,10 +163,13 @@ class TestEvaluatorRun:
 
     @patch("evaluation.evaluator.HFModel")
     @patch("evaluation.evaluator.get_task")
-    def test_run_returns_correct_structure(self, mock_get_task, MockHFModel):
+    def test_run_returns_correct_structure(self, mock_get_task, MockHFModel, tmp_path):
         # Mock task
         mock_task = MagicMock()
         mock_task.evaluate.return_value = {"accuracy": 0.72}
+        mock_task.num_fewshot = 5
+        mock_task.max_samples = None
+        mock_task.seed = 42
         mock_get_task.return_value = mock_task
 
         # Mock model
@@ -194,6 +181,7 @@ class TestEvaluatorRun:
             model_name="mock-model",
             strategy_name="none",
             tasks=["mmlu"],
+            results_dir=tmp_path,
         )
         result = ev.run()
 
@@ -202,14 +190,18 @@ class TestEvaluatorRun:
         assert "results" in result
         assert "mmlu" in result["results"]
         assert result["results"]["mmlu"]["accuracy"] == pytest.approx(0.72)
+        assert "mmlu" in result["result_files"]
         assert "elapsed_seconds" in result
 
     @patch("evaluation.evaluator.HFModel")
     @patch("evaluation.evaluator.get_task")
-    def test_run_multiple_tasks(self, mock_get_task, MockHFModel):
+    def test_run_multiple_tasks(self, mock_get_task, MockHFModel, tmp_path):
         def side_effect(name, **kwargs):
             task = MagicMock()
             task.evaluate.return_value = {"accuracy": 0.5 + hash(name) % 10 / 100}
+            task.num_fewshot = kwargs.get("num_fewshot", 0)
+            task.max_samples = kwargs.get("max_samples")
+            task.seed = kwargs.get("seed", 42)
             return task
 
         mock_get_task.side_effect = side_effect
@@ -221,7 +213,59 @@ class TestEvaluatorRun:
             model_name="mock-model",
             strategy_name="none",
             tasks=["mmlu", "hellaswag", "winogrande"],
+            results_dir=tmp_path,
         )
         result = ev.run()
 
         assert set(result["results"].keys()) == {"mmlu", "hellaswag", "winogrande"}
+
+    @patch("evaluation.evaluator.HFModel")
+    @patch("evaluation.evaluator.get_task")
+    def test_run_saves_each_task_result_json(self, mock_get_task, MockHFModel, tmp_path):
+        def side_effect(name, **kwargs):
+            task = MagicMock()
+            task.evaluate.return_value = {"accuracy": 0.75 if name == "mmlu" else 0.8}
+            task.num_fewshot = kwargs.get("num_fewshot", 0)
+            task.max_samples = kwargs.get("max_samples")
+            task.seed = kwargs.get("seed", 42)
+            return task
+
+        mock_get_task.side_effect = side_effect
+        mock_model_instance = MagicMock()
+        mock_model_instance.strategy = MagicMock()
+        mock_model_instance.strategy.config = {"exit_ratio": 0.6}
+        MockHFModel.return_value = mock_model_instance
+
+        ev = Evaluator(
+            model_name="org/mock-model",
+            strategy_name="layerskip",
+            strategy_kwargs={"exit_ratio": 0.6},
+            tasks=["mmlu", "hellaswag"],
+            task_kwargs={
+                "mmlu": {"num_fewshot": 5, "max_samples": 10, "seed": 7},
+                "hellaswag": {"num_fewshot": 0, "max_samples": 10, "seed": 7},
+            },
+            batch_size=2,
+            device="cpu",
+            dtype="float16",
+            max_length=512,
+            trust_remote_code=True,
+            results_dir=tmp_path,
+        )
+        result = ev.run()
+
+        assert set(result["result_files"].keys()) == {"mmlu", "hellaswag"}
+        assert result["result_files"]["mmlu"] != result["result_files"]["hellaswag"]
+
+        for task_name, result_file in result["result_files"].items():
+            with open(result_file) as f:
+                saved = json.load(f)
+
+            assert saved["model"] == "org/mock-model"
+            assert saved["strategy"] == "layerskip"
+            assert saved["task"] == task_name
+            assert saved["results"] == result["results"][task_name]
+            assert saved["evaluation_config"]["strategy"]["kwargs"] == {"exit_ratio": 0.6}
+            assert saved["evaluation_config"]["runtime"]["batch_size"] == 2
+            assert saved["evaluation_config"]["runtime"]["max_length"] == 512
+            assert saved["evaluation_config"]["task"]["resolved_kwargs"]["max_samples"] == 10

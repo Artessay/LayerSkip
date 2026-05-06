@@ -20,7 +20,7 @@ python eval.py \\
     --strategy layerskip caml gateskip \\
     --tasks winogrande \\
     --batch_size 4 \\
-    --output results.json
+    --output results
 
 # LayerSkip with a custom exit ratio:
 python eval.py \\
@@ -38,7 +38,6 @@ python eval.py \\
 """
 
 import argparse
-import json
 import logging
 from typing import Any, Dict, List
 
@@ -226,9 +225,12 @@ def build_parser() -> argparse.ArgumentParser:
     out_group.add_argument(
         "--output",
         type=str,
-        default=None,
-        metavar="PATH",
-        help="Save results to a JSON file at this path.",
+        default="results",
+        metavar="DIR",
+        help=(
+            "Directory for per-task result JSON files. Each model/task/strategy/"
+            "config setting is saved separately. (default: results)."
+        ),
     )
     out_group.add_argument(
         "--verbosity",
@@ -306,6 +308,7 @@ def main(argv: List[str] = None) -> None:
             dtype=args.dtype,
             max_length=args.max_length,
             trust_remote_code=args.trust_remote_code,
+            results_dir=args.output,
         )
 
         run_results = evaluator.run()
@@ -316,14 +319,6 @@ def main(argv: List[str] = None) -> None:
         comparison = Evaluator.compare_results(all_run_results)
         print("\n--- Strategy Comparison ---")
         Evaluator.print_comparison(comparison)
-
-    if args.output:
-        output_data = (
-            all_run_results[0] if len(all_run_results) == 1 else all_run_results
-        )
-        with open(args.output, "w") as f:
-            json.dump(output_data, f, indent=2)
-        logger.info("Results written to %s", args.output)
 
 
 if __name__ == "__main__":
