@@ -28,7 +28,7 @@ read models and datasets from `/data/<model_or_dataset_id>`.
 modelscope download --dataset cais/mmlu --local_dir /data/cais/mmlu
 modelscope download --dataset evalscope/hellaswag --local_dir /data/Rowan/hellaswag
 modelscope download --dataset allenai/winogrande --local_dir /data/allenai/winogrande
-modelscope download --dataset openai/gsm8k --local_dir /data/openai/gsm8k
+modelscope download --dataset openai-mirror/gsm8k --local_dir /data/openai/gsm8k
 modelscope download --dataset openai/openai_humaneval --local_dir /data/openai/openai_humaneval
 ```
 
