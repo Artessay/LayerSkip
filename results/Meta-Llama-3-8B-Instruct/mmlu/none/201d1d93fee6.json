@@ -1,0 +1,36 @@
+{
+  "model": "Meta-Llama-3-8B-Instruct",
+  "strategy": "none",
+  "task": "mmlu",
+  "evaluation_config": {
+    "model": "Meta-Llama-3-8B-Instruct",
+    "strategy": {
+      "name": "none",
+      "kwargs": {},
+      "config": {}
+    },
+    "task": {
+      "name": "mmlu",
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 5,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "auto",
+      "dtype": "auto",
+      "trust_remote_code": false
+    }
+  },
+  "results": {
+    "accuracy": 0.6462042444096282
+  },
+  "elapsed_seconds": 4365.16,
+  "samples_file": "results/Meta-Llama-3-8B-Instruct/mmlu/none/201d1d93fee6.jsonl"
+}

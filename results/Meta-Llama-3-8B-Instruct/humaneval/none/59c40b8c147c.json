@@ -1,0 +1,36 @@
+{
+  "model": "Meta-Llama-3-8B-Instruct",
+  "strategy": "none",
+  "task": "humaneval",
+  "evaluation_config": {
+    "model": "Meta-Llama-3-8B-Instruct",
+    "strategy": {
+      "name": "none",
+      "kwargs": {},
+      "config": {}
+    },
+    "task": {
+      "name": "humaneval",
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 0,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "auto",
+      "dtype": "auto",
+      "trust_remote_code": false
+    }
+  },
+  "results": {
+    "pass@1": 0.03048780487804878
+  },
+  "elapsed_seconds": 1597.03,
+  "samples_file": "results/Meta-Llama-3-8B-Instruct/humaneval/none/59c40b8c147c.jsonl"
+}
