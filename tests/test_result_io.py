@@ -66,6 +66,7 @@ def test_task_paths_use_model_basename(tmp_path):
     samples_path = task_samples_path(tmp_path, config)
 
     assert config["model"] == "Meta-Llama-3-8B-Instruct"
+    assert config["task"]["version"] == 0
     assert result_path.relative_to(tmp_path).parts[0] == "Meta-Llama-3-8B-Instruct"
     assert result_path.suffix == ".json"
     assert samples_path.suffix == ".jsonl"

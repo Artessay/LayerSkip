@@ -21,6 +21,14 @@ class _MockTokenizer:
         self.encode_calls.append((text, add_special_tokens))
         return [101 if add_special_tokens else 201, len(text)]
 
+    def decode(
+        self,
+        token_ids,
+        skip_special_tokens=True,
+        clean_up_tokenization_spaces=False,
+    ):
+        return getattr(self, "decoded_text", "")
+
 
 class _MockChatTokenizer(_MockTokenizer):
     chat_template = "llama-3-template"
@@ -73,6 +81,16 @@ class _MockModel:
 
     def eval(self):
         return None
+
+
+class _MockGenerativeModel(_MockModel):
+
+    def generate(self, **kwargs):
+        import torch
+
+        input_ids = kwargs["input_ids"]
+        generated = torch.tensor([[301]], dtype=input_ids.dtype, device=input_ids.device)
+        return torch.cat([input_ids, generated], dim=1)
 
 
 def test_init_clears_model_generation_max_length(monkeypatch):
@@ -193,3 +211,23 @@ def test_tokenizer_without_chat_template_keeps_plain_prompt_encoding(monkeypatch
 
     assert model._encode_prompt_ids("plain prompt") == [101, 12]
     assert mock_tokenizer.encode_calls == [("plain prompt", True)]
+
+
+def test_generate_single_preserves_leading_whitespace(monkeypatch):
+    mock_tokenizer = _MockTokenizer()
+    mock_tokenizer.decoded_text = "    return 1\n\n"
+
+    fake_transformers = SimpleNamespace(
+        AutoTokenizer=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: mock_tokenizer,
+        ),
+        AutoModelForCausalLM=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: _MockGenerativeModel(),
+        ),
+        GenerationConfig=lambda **kwargs: SimpleNamespace(**kwargs),
+    )
+    monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+    model = HFModel("mock-model", device="cpu")
+
+    assert model._generate_single("prompt", {"max_new_tokens": 8}) == "    return 1"

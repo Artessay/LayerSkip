@@ -369,6 +369,18 @@ class TestHumanEvalTask:
         assert "```" not in _sanitize_code(code)
         assert "def foo" in _sanitize_code(code)
 
+    def test_sanitize_code_extracts_fenced_code_without_preamble(self):
+        code = "Here is the solution:\n```python\n    return 1\n```\n"
+        assert _sanitize_code(code) == "    return 1"
+
+    def test_sanitize_code_removes_inline_closing_fence(self):
+        code = "```\nreturn 1```"
+        assert _sanitize_code(code) == "return 1"
+
+    def test_sanitize_code_removes_single_backticks(self):
+        code = "`return [x + 1 for x in l]`"
+        assert _sanitize_code(code) == "return [x + 1 for x in l]"
+
     def test_execute_code_simple_pass(self):
         code = "x = 1 + 1\nassert x == 2"
         assert _execute_code(code, timeout=5) is True
@@ -394,6 +406,7 @@ class TestHumanEvalTask:
         task = HumanEvalTask()
         doc = self._make_doc()
         text = task.doc_to_text(doc)
+        assert text.startswith(task.PROMPT_INSTRUCTION)
         assert "def add" in text
 
     def test_construct_requests_single(self):
@@ -404,7 +417,7 @@ class TestHumanEvalTask:
         assert len(requests) == 1
         _, gen_kwargs = requests[0]
         assert "use_chat_template" not in gen_kwargs
-        assert "\ndef " in gen_kwargs["stop_sequences"]
+        assert gen_kwargs["stop_sequences"] == []
 
     def test_construct_requests_multiple(self):
         task = HumanEvalTask(num_samples_per_task=3)
@@ -418,6 +431,35 @@ class TestHumanEvalTask:
         doc = self._make_doc()
         # Correct implementation
         results = ["    return a + b\n"]
+        out = task.process_results(doc, results)
+        assert out["pass@1"] == 1
+
+    def test_process_results_indents_unindented_body(self):
+        task = HumanEvalTask()
+        doc = self._make_doc()
+        results = ["return a + b\n"]
+        out = task.process_results(doc, results)
+        assert out["pass@1"] == 1
+
+    def test_process_results_indents_unindented_multiline_body(self):
+        task = HumanEvalTask()
+        doc = self._make_doc()
+        results = ["total = a + b\nreturn total\n"]
+        out = task.process_results(doc, results)
+        assert out["pass@1"] == 1
+
+    def test_process_results_handles_repeated_signature(self):
+        task = HumanEvalTask()
+        doc = self._make_doc()
+        results = ["def add(a, b):\n    return a + b\n"]
+        out = task.process_results(doc, results)
+        assert out["pass@1"] == 1
+
+    def test_process_results_appends_generation_directly_after_prompt(self):
+        task = HumanEvalTask()
+        doc = self._make_doc()
+        doc["prompt"] = "def add(a, b):\n    "
+        results = ["return a + b\n"]
         out = task.process_results(doc, results)
         assert out["pass@1"] == 1
 

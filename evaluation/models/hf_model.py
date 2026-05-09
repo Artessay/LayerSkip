@@ -444,7 +444,7 @@ class HFModel(BaseLM):
             if stop in text:
                 text = text[: text.index(stop)]
 
-        return text.strip()
+        return text.rstrip()
 
     def _generate_with_strategy(
         self,

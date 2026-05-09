@@ -16,7 +16,6 @@ Security note:
 import ast
 from pathlib import Path
 import re
-import signal
 import subprocess
 import sys
 import tempfile
@@ -28,11 +27,57 @@ from evaluation.tasks.base_task import BaseTask
 
 def _sanitize_code(code: str) -> str:
     """Remove markdown code fences if present, preserving code indentation."""
-    # Only strip if markdown fences exist; otherwise preserve all whitespace
+    fence_match = re.search(
+        r"```(?:python|py)?[^\S\n]*\n?(.*?)(?:```|$)",
+        code,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if fence_match:
+        return fence_match.group(1).rstrip()
+
+    stripped = code.strip()
+    if stripped.startswith("`") and stripped.endswith("`"):
+        return stripped.strip("`").rstrip()
+
     if "```" in code:
-        code = re.sub(r"```(?:python)?\n?", "", code)
+        code = re.sub(r"```(?:python|py)?\s*\n?", "", code, flags=re.IGNORECASE)
         code = re.sub(r"\n?```", "", code)
+    return code.rstrip()
+
+
+def _strip_repeated_signature(code: str, entry_point: str) -> str:
+    """Drop a repeated entry-point signature if the model emits a full function."""
+    lines = code.splitlines()
+    signature = f"def {entry_point}("
+    for line_index, line in enumerate(lines):
+        if line.lstrip().startswith(signature):
+            return "\n".join(lines[line_index + 1 :]).rstrip()
     return code
+
+
+def _normalise_completion_indentation(prompt: str, completion: str) -> str:
+    """Indent function-body completions that were emitted without leading spaces."""
+    completion = completion.rstrip()
+    if not completion:
+        return completion
+
+    if prompt.endswith((" ", "\t")):
+        return completion
+
+    first_code_line = next(
+        (line for line in completion.splitlines() if line.strip()),
+        "",
+    )
+    if first_code_line.startswith((" ", "\t")):
+        return completion
+
+    return textwrap.indent(completion, "    ", lambda line: bool(line.strip()))
+
+
+def _prepare_completion(prompt: str, completion: str, entry_point: str) -> str:
+    completion = _sanitize_code(completion)
+    completion = _strip_repeated_signature(completion, entry_point)
+    return _normalise_completion_indentation(prompt, completion)
 
 
 def _execute_code(code: str, timeout: int = 10) -> bool:
@@ -92,8 +137,14 @@ class HumanEvalTask(BaseTask):
         timeout: Seconds allowed for test execution.
     """
 
-    VERSION = 1
+    VERSION = 3
     DATASET_PATH = "openai/openai_humaneval"
+    PROMPT_INSTRUCTION = (
+        "Complete the following Python function. Return only the Python code "
+        "that should be appended after the prompt. Do not include markdown "
+        "fences, explanations, or repeat the function signature.\n\n"
+    )
+    STOP_SEQUENCES: List[str] = []
 
     def __init__(
         self,
@@ -125,7 +176,7 @@ class HumanEvalTask(BaseTask):
         return load_dataset(self.DATASET_PATH, split="test")
 
     def doc_to_text(self, doc: Dict[str, Any]) -> str:
-        return doc["prompt"]
+        return self.PROMPT_INSTRUCTION + doc["prompt"]
 
     def doc_to_target(self, doc: Dict[str, Any]) -> str:
         return doc["canonical_solution"]
@@ -140,7 +191,7 @@ class HumanEvalTask(BaseTask):
                     "max_new_tokens": self.max_new_tokens,
                     "do_sample": self.num_samples_per_task > 1,
                     "temperature": 0.8 if self.num_samples_per_task > 1 else 1.0,
-                    "stop_sequences": ["\ndef ", "\nclass ", "\n#", "\nif __name__"],
+                    "stop_sequences": self.STOP_SEQUENCES,
                 },
             )
         ] * self.num_samples_per_task
@@ -154,11 +205,10 @@ class HumanEvalTask(BaseTask):
 
         passed_any = False
         for generation in results:
-            generation = _sanitize_code(generation)
+            generation = _prepare_completion(prompt, generation, entry_point)
             # Build full program: prompt + generation + tests
             full_code = (
                 prompt
-                + "\n"
                 + generation
                 + "\n\n"
                 + test_code

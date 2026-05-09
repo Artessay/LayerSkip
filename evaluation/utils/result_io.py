@@ -27,6 +27,15 @@ def config_hash(config: Dict[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()[:12]
 
 
+def task_version(task: Any) -> Union[int, str]:
+    version = getattr(type(task), "VERSION", None)
+    if version is None:
+        version = getattr(task, "VERSION", 0)
+    if isinstance(version, (int, str)):
+        return version
+    return 0
+
+
 def build_task_evaluation_config(
     *,
     model_name: str,
@@ -51,6 +60,7 @@ def build_task_evaluation_config(
         },
         "task": {
             "name": task_name,
+            "version": task_version(task),
             "kwargs": task_kwargs.get(task_name, {}),
             "resolved_kwargs": {
                 "num_fewshot": task.num_fewshot,
