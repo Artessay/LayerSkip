@@ -402,6 +402,9 @@ class TestHumanEvalTask:
         ctx = task.doc_to_text(doc)
         requests = task.construct_requests(doc, ctx)
         assert len(requests) == 1
+        _, gen_kwargs = requests[0]
+        assert "use_chat_template" not in gen_kwargs
+        assert "\ndef " in gen_kwargs["stop_sequences"]
 
     def test_construct_requests_multiple(self):
         task = HumanEvalTask(num_samples_per_task=3)
