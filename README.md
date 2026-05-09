@@ -149,8 +149,8 @@ python eval.py \
   --strategy calibratedskip \
   --calibratedskip_metrics activation_ratio gradient_value gradient_trace shapley_value \
   --calibration_max_samples 4096 \
-  --tasks mmlu hellaswag winogrande gsm8k humaneval \
-  --local
+  --local \
+  --tasks mmlu hellaswag winogrande gsm8k humaneval
 ```
 
 ```bash
@@ -159,8 +159,8 @@ python eval.py \
   --strategy calibratedskip \
   --calibratedskip_metrics activation_ratio gradient_value gradient_trace shapley_value \
   --calibration_max_samples 4096 \
-  --tasks mmlu hellaswag winogrande gsm8k humaneval \
-  --local
+  --local \
+  --tasks mmlu hellaswag winogrande gsm8k humaneval
 ```
 
 For each task, CalibratedSkip saves a JSON file under
