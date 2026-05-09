@@ -7,6 +7,7 @@ from evaluation.strategies import get_strategy, STRATEGY_REGISTRY
 from evaluation.strategies.layerskip import LayerSkipStrategy
 from evaluation.strategies.caml import CAMLStrategy
 from evaluation.strategies.gateskip import GateSkipStrategy
+from evaluation.strategies.manualskip import ManualSkipStrategy
 
 
 # ------------------------------------------------------------------ #
@@ -40,6 +41,7 @@ def test_strategy_registry_keys():
     assert "layerskip" in STRATEGY_REGISTRY
     assert "caml" in STRATEGY_REGISTRY
     assert "gateskip" in STRATEGY_REGISTRY
+    assert "manualskip" in STRATEGY_REGISTRY
 
 
 def test_get_strategy_none():
@@ -248,6 +250,50 @@ class TestGateSkipStrategy:
 
 
 # ------------------------------------------------------------------ #
+# ManualSkipStrategy                                                   #
+# ------------------------------------------------------------------ #
+
+class TestManualSkipStrategy:
+
+    def test_normalizes_unique_sorted_layers(self):
+        s = ManualSkipStrategy(skip_layers=[4, 2, 4, 1])
+        assert s.skip_layers == (1, 2, 4)
+        assert s.config == {"skip_layers": [1, 2, 4]}
+
+    def test_get_skipped_layer_indices_zero_based(self):
+        s = ManualSkipStrategy(skip_layers=[1, 3, 8])
+        assert s.get_skipped_layer_indices(8) == (0, 2, 7)
+
+    def test_select_exit_layer_uses_full_depth(self):
+        s = ManualSkipStrategy(skip_layers=[2, 4])
+        hs = _make_hidden_states(8)
+        assert s.select_exit_layer(hs, 8) == 8
+
+    def test_invalid_empty_layers(self):
+        with pytest.raises(ValueError):
+            ManualSkipStrategy(skip_layers=[])
+
+    def test_invalid_non_positive_layers(self):
+        with pytest.raises(ValueError):
+            ManualSkipStrategy(skip_layers=[0])
+        with pytest.raises(ValueError):
+            ManualSkipStrategy(skip_layers=[-1])
+
+    def test_invalid_out_of_range_layers(self):
+        s = ManualSkipStrategy(skip_layers=[2, 9])
+        with pytest.raises(ValueError, match="within"):
+            s.get_skipped_layer_indices(8)
+
+    def test_strategy_name(self):
+        assert ManualSkipStrategy(skip_layers=[2]).name == "manualskip"
+
+    def test_get_strategy_factory(self):
+        s = get_strategy("manualskip", skip_layers=[2, 4])
+        assert isinstance(s, ManualSkipStrategy)
+        assert s.skip_layers == (2, 4)
+
+
+# ------------------------------------------------------------------ #
 # Cross-strategy consistency                                           #
 # ------------------------------------------------------------------ #
 
@@ -263,6 +309,7 @@ class TestStrategyCrossConsistency:
             LayerSkipStrategy(exit_ratio=0.75),
             CAMLStrategy(confidence_threshold=0.9),
             GateSkipStrategy(gate_threshold=0.01),
+            ManualSkipStrategy(skip_layers=[2, 4]),
         ]
         for strat in strategies:
             idx = strat.select_exit_layer(hs, num_layers, lm_head=lm_head, layer_norm=layer_norm)
@@ -278,6 +325,7 @@ class TestStrategyCrossConsistency:
             LayerSkipStrategy(),
             CAMLStrategy(),
             GateSkipStrategy(),
+            ManualSkipStrategy(skip_layers=[2, 4]),
         ]
         for strat in strategies:
             h = strat.get_exit_hidden_state(hs, num_layers, lm_head=lm_head, layer_norm=layer_norm)

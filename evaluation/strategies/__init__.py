@@ -4,12 +4,14 @@ from evaluation.strategies.base_strategy import BaseLayerSkipStrategy
 from evaluation.strategies.layerskip import LayerSkipStrategy
 from evaluation.strategies.caml import CAMLStrategy
 from evaluation.strategies.gateskip import GateSkipStrategy
+from evaluation.strategies.manualskip import ManualSkipStrategy
 
 STRATEGY_REGISTRY = {
     "none": None,
     "layerskip": LayerSkipStrategy,
     "caml": CAMLStrategy,
     "gateskip": GateSkipStrategy,
+    "manualskip": ManualSkipStrategy,
 }
 
 _STRATEGY_DEFAULTS = {
@@ -54,6 +56,7 @@ __all__ = [
     "LayerSkipStrategy",
     "CAMLStrategy",
     "GateSkipStrategy",
+    "ManualSkipStrategy",
     "STRATEGY_REGISTRY",
     "get_strategy",
 ]

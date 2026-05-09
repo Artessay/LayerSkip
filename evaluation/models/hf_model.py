@@ -15,8 +15,9 @@ modifying model weights or retraining.
 from __future__ import annotations
 
 import logging
+from contextlib import contextmanager
 from collections.abc import Mapping
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -96,6 +97,14 @@ class HFModel(BaseLM):
 
         self._num_layers: int = self.model.config.num_hidden_layers
         self._use_strategy: bool = strategy is not None
+        self._bypass_layer_indices = self._get_strategy_bypass_layer_indices()
+        self._transformer_layers: Optional[Sequence[torch.nn.Module]] = None
+        if self._bypass_layer_indices:
+            self._transformer_layers = self._resolve_transformer_layers()
+            logger.info(
+                "Bypassing transformer layers: %s",
+                [idx + 1 for idx in self._bypass_layer_indices],
+            )
         logger.info(
             "Model loaded. Layers: %d | Strategy: %s",
             self._num_layers,
@@ -107,6 +116,86 @@ class HFModel(BaseLM):
     # ------------------------------------------------------------------ #
     # Internal helpers                                                     #
     # ------------------------------------------------------------------ #
+
+    def _get_strategy_bypass_layer_indices(self) -> Tuple[int, ...]:
+        if self.strategy is None:
+            return ()
+        return tuple(self.strategy.get_skipped_layer_indices(self._num_layers))
+
+    def _resolve_transformer_layers(self) -> Sequence[torch.nn.Module]:
+        """Return the model's transformer block list for manual layer bypass."""
+        inner = getattr(self.model, "model", None)
+        transformer = getattr(self.model, "transformer", None)
+        gpt_neox = getattr(self.model, "gpt_neox", None)
+        decoder = getattr(inner, "decoder", None) if inner is not None else None
+
+        candidates = [
+            getattr(inner, "layers", None),
+            getattr(inner, "h", None),
+            getattr(inner, "blocks", None),
+            getattr(decoder, "layers", None),
+            getattr(transformer, "h", None),
+            getattr(transformer, "blocks", None),
+            getattr(gpt_neox, "layers", None),
+        ]
+
+        for layers in candidates:
+            if layers is None:
+                continue
+            try:
+                if len(layers) == self._num_layers:
+                    return layers
+            except TypeError:
+                continue
+
+        raise ValueError(
+            f"Strategy '{self.strategy.name}' requires direct access to the "
+            "transformer layer list, but this model architecture was not recognized."
+        )
+
+    @staticmethod
+    def _make_bypass_forward():
+        def bypass_forward(*args, **kwargs):
+            hidden_states = args[0] if args else kwargs.get("hidden_states")
+            if hidden_states is None:
+                raise ValueError("Cannot bypass a layer without hidden_states input")
+
+            output_attentions = bool(kwargs.get("output_attentions", False))
+            use_cache = bool(kwargs.get("use_cache", False))
+
+            outputs = (hidden_states,)
+            if output_attentions:
+                outputs += (None,)
+            if use_cache:
+                outputs += (kwargs.get("past_key_value", None),)
+            return outputs
+
+        return bypass_forward
+
+    @contextmanager
+    def _bypass_transformer_layers(self) -> Iterator[None]:
+        if not self._bypass_layer_indices:
+            yield
+            return
+
+        if self._transformer_layers is None:
+            raise RuntimeError("Transformer layers were not resolved for bypassing")
+
+        originals = []
+        for idx in self._bypass_layer_indices:
+            layer = self._transformer_layers[idx]
+            originals.append((layer, layer.forward))
+            layer.forward = self._make_bypass_forward()
+
+        try:
+            yield
+        finally:
+            for layer, original_forward in originals:
+                layer.forward = original_forward
+
+    def _forward_model(self, **kwargs):
+        with self._bypass_transformer_layers():
+            return self.model(**kwargs)
 
     def _get_layer_norm(self):
         """Return the model's final layer-norm module (architecture-agnostic)."""
@@ -321,7 +410,7 @@ class HFModel(BaseLM):
         )
 
         with torch.no_grad():
-            outputs = self.model(
+            outputs = self._forward_model(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
                 output_hidden_states=self._use_strategy,
@@ -464,18 +553,27 @@ class HFModel(BaseLM):
         past_key_values = None
         cur_input_ids = input_ids
         cur_attention_mask = attention_mask
+        use_cache = not self._bypass_layer_indices
 
         eos_token_ids = set(self._eos_token_id_list())
 
         for _ in range(max_new_tokens):
             with torch.no_grad():
-                outputs = self.model(
-                    input_ids=cur_input_ids,
-                    attention_mask=cur_attention_mask,
-                    past_key_values=past_key_values,
-                    output_hidden_states=True,
-                    use_cache=True,
-                )
+                if use_cache:
+                    outputs = self._forward_model(
+                        input_ids=cur_input_ids,
+                        attention_mask=cur_attention_mask,
+                        past_key_values=past_key_values,
+                        output_hidden_states=True,
+                        use_cache=True,
+                    )
+                else:
+                    outputs = self._forward_model(
+                        input_ids=cur_input_ids,
+                        attention_mask=cur_attention_mask,
+                        output_hidden_states=True,
+                        use_cache=False,
+                    )
 
             hidden = self._apply_strategy_to_hidden_states(outputs.hidden_states)
             logits = self._logits_from_hidden(hidden)
@@ -512,9 +610,11 @@ class HFModel(BaseLM):
             if any(s in decoded_so_far for s in stop_sequences):
                 break
 
-            # Update KV cache and attention mask
-            past_key_values = outputs.past_key_values
-            cur_input_ids = next_token
+            if use_cache:
+                past_key_values = outputs.past_key_values
+                cur_input_ids = next_token
+            else:
+                cur_input_ids = torch.cat([cur_input_ids, next_token], dim=1)
             cur_attention_mask = torch.cat(
                 [cur_attention_mask, torch.ones(1, 1, device=self._device, dtype=torch.long)],
                 dim=1,

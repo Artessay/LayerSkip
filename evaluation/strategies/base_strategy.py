@@ -66,5 +66,16 @@ class BaseLayerSkipStrategy(ABC):
         idx = self.select_exit_layer(hidden_states, num_layers, lm_head, layer_norm)
         return hidden_states[idx]
 
+    def get_skipped_layer_indices(self, num_layers: int) -> Tuple[int, ...]:
+        """
+        Return zero-based transformer-layer indices that should be bypassed.
+
+        Most strategies only choose an exit hidden state after a normal forward
+        pass. Strategies that want to avoid computing specific transformer
+        blocks can override this hook and return the layer module indices that
+        should pass their input hidden state through unchanged.
+        """
+        return ()
+
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(config={self.config})"

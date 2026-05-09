@@ -157,6 +157,19 @@ class TestEvaluatorBuildModel:
         assert isinstance(call_kwargs["strategy"], GateSkipStrategy)
         assert call_kwargs["strategy"].skip_budget == 0.2
 
+    @patch("evaluation.evaluator.HFModel")
+    def test_build_model_with_manualskip(self, MockHFModel):
+        ev = Evaluator(
+            model_name="mock-model",
+            strategy_name="manualskip",
+            strategy_kwargs={"skip_layers": [2, 4]},
+        )
+        ev._build_model()
+        call_kwargs = MockHFModel.call_args[1]
+        from evaluation.strategies.manualskip import ManualSkipStrategy
+        assert isinstance(call_kwargs["strategy"], ManualSkipStrategy)
+        assert call_kwargs["strategy"].skip_layers == (2, 4)
+
 
 class TestEvaluatorRun:
     """Test the full run() method with mocked model and tasks."""

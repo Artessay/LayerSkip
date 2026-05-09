@@ -10,6 +10,7 @@ different layer-skipping strategies across standard NLP benchmarks.
 | **none** | Full model (baseline, no skipping) | – |
 | **layerskip** | Static early exit at a fixed fraction of layers | [Elhoushi et al., 2024](https://arxiv.org/abs/2404.16710) |
 | **gateskip** | What Layers When: Learning to Skip Compute in LLMs with Residual Gates | [Laitenberger et al., 2024](https://arxiv.org/abs/2510.13876) |
+| **manualskip** | Bypass user-selected transformer layers | – |
 
 ## Supported Benchmarks
 
@@ -95,12 +96,13 @@ python eval.py \
   --tasks mmlu hellaswag winogrande gsm8k humaneval
 ```
 
-### Compare all three strategies simultaneously
+### Compare all strategies simultaneously
 
 ```bash
 python eval.py \
   --model meta-llama/Meta-Llama-3-8B-Instruct \
-  --strategy none layerskip caml gateskip \
+  --strategy none layerskip caml gateskip manualskip \
+  --manualskip_layers 2 4 8 \
   --tasks mmlu hellaswag winogrande \
   --batch_size 4 \
   --output results
@@ -127,6 +129,16 @@ python eval.py \
   --tasks mmlu hellaswag
 ```
 
+### ManualSkip with explicit layers
+
+```bash
+python eval.py \
+  --model meta-llama/Llama-3.2-1B-Instruct \
+  --strategy manualskip \
+  --manualskip_layers 2 4 8 \
+  --tasks mmlu hellaswag
+```
+
 ---
 
 ## Command-Line Reference
@@ -149,7 +161,7 @@ python eval.py --help
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--strategy` | `none` | One or more of `none layerskip caml gateskip` |
+| `--strategy` | `none` | One or more of `none layerskip caml gateskip manualskip` |
 | `--layerskip_exit_ratio` | `0.75` | Fraction of layers to execute (LayerSkip) |
 | `--layerskip_min_layers` | `4` | Minimum layers always executed (LayerSkip) |
 | `--caml_confidence_threshold` | `0.9` | Exit threshold (CAML) |
@@ -158,6 +170,7 @@ python eval.py --help
 | `--gateskip_gate_threshold` | `0.01` | Relative-change threshold (GateSkip) |
 | `--gateskip_skip_budget` | `0.3` | Max fraction of layers to skip (GateSkip) |
 | `--gateskip_min_layers` | `4` | Minimum layers before skipping (GateSkip) |
+| `--manualskip_layers` | required for `manualskip` | 1-based layer numbers to bypass, e.g. `2 4 8` or `2,4,8` |
 
 ### Task arguments
 
@@ -222,6 +235,9 @@ strategy = get_strategy("caml", confidence_threshold=0.9)
 
 # GateSkip: skip up to 30% of low-change layers
 strategy = get_strategy("gateskip", skip_budget=0.3)
+
+# ManualSkip: bypass layers 2, 4, and 8
+strategy = get_strategy("manualskip", skip_layers=[2, 4, 8])
 ```
 
 ### Task API
@@ -253,7 +269,8 @@ LayerSkip/
 │   │   ├── base_strategy.py   # Abstract strategy base class
 │   │   ├── layerskip.py       # Static early-exit strategy
 │   │   ├── caml.py            # Confidence-adaptive strategy
-│   │   └── gateskip.py        # Gate/change-based strategy
+│   │   ├── gateskip.py        # Gate/change-based strategy
+│   │   └── manualskip.py      # User-selected layer bypass strategy
 │   ├── tasks/
 │   │   ├── base_task.py       # Abstract task base class
 │   │   ├── mmlu.py            # MMLU (57 subjects)
@@ -304,6 +321,13 @@ layers: `||h_l − h_{l−1}|| / ||h_{l−1}||`. Layers where this change is bel
 `gate_threshold` are considered low-importance and counted as skipped, up to
 `skip_budget` fraction of the total. The strategy returns the last
 high-importance layer as the exit point.
+
+### ManualSkip
+
+Bypasses the exact 1-based transformer layer numbers provided by the user. For
+each skipped layer, the model does not execute that transformer block; the
+previous layer's hidden state is passed directly to the following layer. The
+model still runs to the final layer after applying those bypasses.
 
 ---
 

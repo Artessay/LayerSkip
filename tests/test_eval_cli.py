@@ -7,6 +7,8 @@ import pytest
 from eval import (
     _apply_local_dataset_paths,
     _as_local_path,
+    _build_strategy_kwargs,
+    _parse_manualskip_layers,
     _restore_dataset_paths,
     build_parser,
     main,
@@ -40,6 +42,23 @@ def test_results_dir_argument_removed():
 
     with pytest.raises(SystemExit):
         parser.parse_args(["--results_dir", "custom-results"])
+
+
+def test_manualskip_layers_parse_space_separated_values():
+    assert _parse_manualskip_layers(["2", "4", "8"]) == [2, 4, 8]
+
+
+def test_manualskip_layers_parse_comma_and_bracket_values():
+    assert _parse_manualskip_layers(["[2,4]", "8"]) == [2, 4, 8]
+
+
+def test_build_strategy_kwargs_for_manualskip():
+    parser = build_parser()
+    args = parser.parse_args(
+        ["--strategy", "manualskip", "--manualskip_layers", "2", "4", "8"]
+    )
+
+    assert _build_strategy_kwargs(args, "manualskip") == {"skip_layers": [2, 4, 8]}
 
 
 def test_as_local_path_prefixes_hub_id():
@@ -115,3 +134,30 @@ def test_main_local_uses_data_model_path(mock_evaluator):
         == "/data/meta-llama/Llama-3.2-1B-Instruct"
     )
     assert MMLUTask.DATASET_PATH == "cais/mmlu"
+
+
+@patch("eval.Evaluator")
+def test_main_passes_manualskip_layers(mock_evaluator):
+    mock_instance = MagicMock()
+    mock_instance.run.return_value = {
+        "model": "mock-model",
+        "strategy": "manualskip",
+        "strategy_config": {"skip_layers": [2, 4]},
+        "results": {"mmlu": {"accuracy": 0.5}},
+        "elapsed_seconds": 1.0,
+    }
+    mock_evaluator.return_value = mock_instance
+
+    main([
+        "--model",
+        "mock-model",
+        "--strategy",
+        "manualskip",
+        "--manualskip_layers",
+        "2",
+        "4",
+        "--tasks",
+        "mmlu",
+    ])
+
+    assert mock_evaluator.call_args.kwargs["strategy_kwargs"] == {"skip_layers": [2, 4]}

@@ -14,10 +14,10 @@ python eval.py \\
     --tasks mmlu hellaswag \\
     --max_samples 100
 
-# Compare all three strategies on WinoGrande with Llama-3-8B:
+# Compare all strategies on WinoGrande with Llama-3-8B:
 python eval.py \\
     --model meta-llama/Meta-Llama-3-8B-Instruct \\
-    --strategy layerskip caml gateskip \\
+    --strategy layerskip caml gateskip manualskip \\
     --tasks winogrande \\
     --batch_size 4 \\
     --output results
@@ -34,6 +34,13 @@ python eval.py \\
     --model meta-llama/Llama-3.2-1B-Instruct \\
     --strategy caml \\
     --caml_confidence_threshold 0.85 \\
+    --tasks mmlu
+
+# ManualSkip with user-selected layers bypassed:
+python eval.py \\
+    --model meta-llama/Llama-3.2-1B-Instruct \\
+    --strategy manualskip \\
+    --manualskip_layers 2 4 8 \\
     --tasks mmlu
 """
 
@@ -177,6 +184,17 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="N",
         help="GateSkip: minimum layers before skipping is considered (default: 4).",
     )
+    # ManualSkip-specific
+    strategy_group.add_argument(
+        "--manualskip_layers",
+        nargs="+",
+        default=[],
+        metavar="LAYER",
+        help=(
+            "ManualSkip: 1-based layer numbers to bypass, e.g. "
+            "'--manualskip_layers 2 4 8' or '--manualskip_layers 2,4,8'."
+        ),
+    )
 
     # ------------------------------------------------------------------ #
     # Task arguments                                                       #
@@ -246,6 +264,31 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _parse_manualskip_layers(values: List[str]) -> List[int]:
+    """Parse ManualSkip CLI values into a flat list of 1-based layer numbers."""
+    if not values:
+        raise ValueError("--manualskip_layers must include at least one layer")
+
+    layers = []
+    for value in values:
+        cleaned = value.strip().strip("[]")
+        for part in cleaned.split(","):
+            part = part.strip()
+            if not part:
+                continue
+            try:
+                layer_num = int(part)
+            except ValueError as exc:
+                raise ValueError(
+                    f"--manualskip_layers values must be integers, got '{part}'"
+                ) from exc
+            layers.append(layer_num)
+
+    if not layers:
+        raise ValueError("--manualskip_layers must include at least one layer")
+    return layers
+
+
 def _build_strategy_kwargs(args: argparse.Namespace, strategy_name: str) -> Dict[str, Any]:
     """Extract strategy-specific kwargs from parsed args."""
     if strategy_name == "layerskip":
@@ -265,6 +308,8 @@ def _build_strategy_kwargs(args: argparse.Namespace, strategy_name: str) -> Dict
             "skip_budget": args.gateskip_skip_budget,
             "min_layers": args.gateskip_min_layers,
         }
+    if strategy_name == "manualskip":
+        return {"skip_layers": _parse_manualskip_layers(args.manualskip_layers)}
     return {}
 
 
@@ -326,7 +371,10 @@ def main(argv: List[str] = None) -> None:
 
     try:
         for strategy_name in strategies:
-            strategy_kwargs = _build_strategy_kwargs(args, strategy_name)
+            try:
+                strategy_kwargs = _build_strategy_kwargs(args, strategy_name)
+            except ValueError as exc:
+                parser.error(str(exc))
 
             logger.info(
                 "Running evaluation: model=%s | strategy=%s | tasks=%s",
