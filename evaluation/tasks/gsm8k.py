@@ -112,6 +112,13 @@ class GSM8KTask(BaseTask):
 
         return load_dataset(self.DATASET_PATH, self.DATASET_NAME, split="train")
 
+    def _load_calibration_dataset(self):
+        return self._load_fewshot_dataset()
+
+    @property
+    def calibration_split_name(self) -> str:
+        return "train"
+
     def fewshot_examples(self, k: int, rng) -> List[Dict[str, Any]]:
         if k == 0:
             return []

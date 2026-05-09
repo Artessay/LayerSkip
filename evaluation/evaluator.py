@@ -13,7 +13,9 @@ from pathlib import Path
 import time
 from typing import Any, Dict, List, Optional, Union
 
+from evaluation.calibration import calibrate_task_layers
 from evaluation.models.hf_model import HFModel
+from evaluation.strategies.calibratedskip import CalibratedSkipStrategy
 from evaluation.strategies import get_strategy
 from evaluation.tasks import get_task
 from evaluation.tasks.base_task import BaseTask
@@ -98,7 +100,10 @@ class Evaluator:
     # ------------------------------------------------------------------ #
 
     def _build_model(self) -> HFModel:
-        strategy = get_strategy(self.strategy_name, **self.strategy_kwargs)
+        if self.strategy_name == "calibratedskip":
+            strategy = None
+        else:
+            strategy = get_strategy(self.strategy_name, **self.strategy_kwargs)
         return HFModel(
             model_name=self.model_name,
             strategy=strategy,
@@ -151,12 +156,44 @@ class Evaluator:
         results: Dict[str, Any] = {}
         result_files: Dict[str, str] = {}
         sample_files: Dict[str, str] = {}
+        calibration_files: Dict[str, str] = {}
+        per_task_strategy_config: Dict[str, Dict[str, Any]] = {}
         t0 = time.time()
 
         for task_name in self.task_names:
             logger.info("Evaluating task '%s' …", task_name)
             task = self._build_task(task_name)
             t_task = time.time()
+
+            if self.strategy_name == "calibratedskip":
+                calibration = calibrate_task_layers(
+                    model=model,
+                    task=task,
+                    task_name=task_name,
+                    model_name=self.model_name,
+                    task_kwargs=self.task_kwargs,
+                    strategy_kwargs=self.strategy_kwargs,
+                    batch_size=self.batch_size,
+                    device=self.device,
+                    requested_device=self.requested_device,
+                    dtype=self.dtype,
+                    trust_remote_code=self.trust_remote_code,
+                    results_dir=self.results_dir,
+                )
+                calibration_files[task_name] = calibration["metrics_file"]
+                strategy = CalibratedSkipStrategy(
+                    skip_layers=[],
+                    calibration_metrics=self.strategy_kwargs.get(
+                        "calibration_metrics",
+                        ["activation_ratio", "gradient_trace"],
+                    ),
+                    metrics_path=calibration["metrics_file"],
+                    calibration_split=calibration["calibration_split"],
+                )
+                model.set_strategy(strategy)
+                strategy_config = strategy.config
+                per_task_strategy_config[task_name] = strategy_config
+
             evaluation_config = build_task_evaluation_config(
                 model_name=self.model_name,
                 strategy_name=self.strategy_name,
@@ -196,7 +233,14 @@ class Evaluator:
 
         total_elapsed = time.time() - t0
 
-        return {
+        if self.strategy_name == "calibratedskip":
+            strategy_config = (
+                next(iter(per_task_strategy_config.values()))
+                if len(per_task_strategy_config) == 1
+                else per_task_strategy_config
+            )
+
+        output = {
             "model": self.saved_model_name,
             "strategy": self.strategy_name,
             "strategy_config": strategy_config,
@@ -205,6 +249,9 @@ class Evaluator:
             "sample_files": sample_files,
             "elapsed_seconds": round(total_elapsed, 2),
         }
+        if calibration_files:
+            output["calibration_files"] = calibration_files
+        return output
 
     # ------------------------------------------------------------------ #
     # Reporting                                                            #

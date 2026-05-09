@@ -65,6 +65,52 @@ class BaseTask(ABC):
     def _load_dataset(self):
         """Return the raw HuggingFace dataset split used for evaluation."""
 
+    def _load_calibration_dataset(self):
+        """
+        Return the raw dataset split used for layer-importance calibration.
+
+        Tasks should prefer validation, then training, and finally fall back to
+        the evaluation/test split when neither is available.
+        """
+        return self._load_dataset()
+
+    @property
+    def calibration_split_name(self) -> str:
+        """Human-readable name of the split used for calibration."""
+        return "test"
+
+    def calibration_docs(
+        self,
+        max_samples: Optional[int] = None,
+        seed: Optional[int] = None,
+    ) -> List[Dict[str, Any]]:
+        """Load and optionally subsample calibration examples."""
+        docs = list(self._load_calibration_dataset())
+        if max_samples is not None:
+            import random
+
+            rng = random.Random(self.seed if seed is None else seed)
+            docs = rng.sample(docs, min(max_samples, len(docs)))
+        return docs
+
+    def build_calibration_requests(
+        self,
+        max_samples: Optional[int] = None,
+        seed: Optional[int] = None,
+    ) -> Tuple[List[Dict[str, Any]], List[Tuple[str, str]]]:
+        """
+        Build teacher-forcing requests for calibration.
+
+        Each request is ``(prompt_context, gold_continuation)`` and can be used
+        to compute both hidden-state activation statistics and label-driven
+        gradients without running free-form generation.
+        """
+        docs = self.calibration_docs(max_samples=max_samples, seed=seed)
+        if self.num_fewshot:
+            self._get_fewshot_examples()
+        requests = [(self.fewshot_context(doc), self.doc_to_target(doc)) for doc in docs]
+        return docs, requests
+
     # ------------------------------------------------------------------ #
     # Example formatting                                                   #
     # ------------------------------------------------------------------ #

@@ -175,6 +175,13 @@ class HumanEvalTask(BaseTask):
 
         return load_dataset(self.DATASET_PATH, split="test")
 
+    def _load_calibration_dataset(self):
+        return self._load_dataset()
+
+    @property
+    def calibration_split_name(self) -> str:
+        return "test"
+
     def doc_to_text(self, doc: Dict[str, Any]) -> str:
         return self.PROMPT_INSTRUCTION + doc["prompt"]
 

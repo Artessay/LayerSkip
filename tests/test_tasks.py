@@ -40,6 +40,47 @@ def test_get_task_kwargs_override():
     assert task.max_samples == 50
 
 
+def test_build_calibration_requests_uses_gold_target(monkeypatch):
+    task = MMLUTask(num_fewshot=0)
+    doc = {
+        "question": "What is 2+2?",
+        "choices": ["3", "4", "5", "6"],
+        "answer": 1,
+    }
+    monkeypatch.setattr(task, "calibration_docs", lambda max_samples=None, seed=None: [doc])
+
+    docs, requests = task.build_calibration_requests(max_samples=1, seed=0)
+
+    assert docs == [doc]
+    assert requests == [(task.doc_to_text(doc), " B")]
+
+
+def test_task_calibration_split_names():
+    assert HellaSwagTask().calibration_split_name == "validation"
+    assert WinoGrandeTask().calibration_split_name == "validation"
+    assert GSM8KTask().calibration_split_name == "train"
+    assert HumanEvalTask().calibration_split_name == "test"
+
+
+def test_mmlu_calibration_falls_back_to_train(monkeypatch):
+    import datasets
+
+    load_calls = []
+
+    def fake_load_dataset(path, subject, split):
+        load_calls.append(split)
+        if split == "validation":
+            raise ValueError("no validation split")
+        return [split]
+
+    monkeypatch.setattr(datasets, "load_dataset", fake_load_dataset)
+    task = MMLUTask(subjects=["abstract_algebra"])
+
+    assert task._load_calibration_dataset() == ["train"]
+    assert load_calls == ["validation", "train"]
+    assert task.calibration_split_name == "train"
+
+
 @pytest.mark.parametrize(
     "task_factory,method_name",
     [

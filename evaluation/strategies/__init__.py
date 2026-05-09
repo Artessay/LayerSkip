@@ -4,6 +4,7 @@ from evaluation.strategies.base_strategy import BaseLayerSkipStrategy
 from evaluation.strategies.layerskip import LayerSkipStrategy
 from evaluation.strategies.caml import CAMLStrategy
 from evaluation.strategies.gateskip import GateSkipStrategy
+from evaluation.strategies.calibratedskip import CalibratedSkipStrategy
 from evaluation.strategies.manualskip import ManualSkipStrategy
 
 STRATEGY_REGISTRY = {
@@ -11,6 +12,7 @@ STRATEGY_REGISTRY = {
     "layerskip": LayerSkipStrategy,
     "caml": CAMLStrategy,
     "gateskip": GateSkipStrategy,
+    "calibratedskip": CalibratedSkipStrategy,
     "manualskip": ManualSkipStrategy,
 }
 
@@ -18,6 +20,12 @@ _STRATEGY_DEFAULTS = {
     "layerskip": {"exit_ratio": 0.75, "min_layers": 4},
     "caml": {"confidence_threshold": 0.9, "min_layers": 4, "check_every": 1},
     "gateskip": {"gate_threshold": 0.01, "skip_budget": 0.3, "min_layers": 4},
+    "calibratedskip": {
+        "skip_layers": [],
+        "calibration_metrics": ["activation_ratio", "gradient_trace"],
+        "metrics_path": None,
+        "calibration_split": None,
+    },
 }
 
 
@@ -56,6 +64,7 @@ __all__ = [
     "LayerSkipStrategy",
     "CAMLStrategy",
     "GateSkipStrategy",
+    "CalibratedSkipStrategy",
     "ManualSkipStrategy",
     "STRATEGY_REGISTRY",
     "get_strategy",

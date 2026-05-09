@@ -10,6 +10,7 @@ different layer-skipping strategies across standard NLP benchmarks.
 | **none** | Full model (baseline, no skipping) | – |
 | **layerskip** | Static early exit at a fixed fraction of layers | [Elhoushi et al., 2024](https://arxiv.org/abs/2404.16710) |
 | **gateskip** | What Layers When: Learning to Skip Compute in LLMs with Residual Gates | [Laitenberger et al., 2024](https://arxiv.org/abs/2510.13876) |
+| **calibratedskip** | Compute and save calibration-set layer importance metrics | – |
 | **manualskip** | Bypass user-selected transformer layers | – |
 
 ## Supported Benchmarks
@@ -139,6 +140,22 @@ python eval.py \
   --tasks mmlu hellaswag
 ```
 
+### CalibratedSkip from layer importance metrics
+
+```bash
+python eval.py \
+  --model meta-llama/Llama-3.2-1B-Instruct \
+  --strategy calibratedskip \
+  --calibratedskip_metrics activation_ratio gradient_trace \
+  --calibration_max_samples 1024 \
+  --tasks mmlu hellaswag winogrande gsm8k humaneval
+```
+
+For each task, CalibratedSkip saves a JSON file under
+`results/<model>/<task>/calibration/` containing every layer's metrics. Inspect
+those files to choose layers, then run `manualskip` with the selected layer
+numbers.
+
 ---
 
 ## Command-Line Reference
@@ -161,7 +178,7 @@ python eval.py --help
 
 | Argument | Default | Description |
 |----------|---------|-------------|
-| `--strategy` | `none` | One or more of `none layerskip caml gateskip manualskip` |
+| `--strategy` | `none` | One or more of `none layerskip caml gateskip calibratedskip manualskip` |
 | `--layerskip_exit_ratio` | `0.75` | Fraction of layers to execute (LayerSkip) |
 | `--layerskip_min_layers` | `4` | Minimum layers always executed (LayerSkip) |
 | `--caml_confidence_threshold` | `0.9` | Exit threshold (CAML) |
@@ -170,6 +187,8 @@ python eval.py --help
 | `--gateskip_gate_threshold` | `0.01` | Relative-change threshold (GateSkip) |
 | `--gateskip_skip_budget` | `0.3` | Max fraction of layers to skip (GateSkip) |
 | `--gateskip_min_layers` | `4` | Minimum layers before skipping (GateSkip) |
+| `--calibratedskip_metrics` | `activation_ratio gradient_trace` | Metrics to compute and save for every layer |
+| `--calibration_max_samples` | all | Cap calibration examples per task |
 | `--manualskip_layers` | required for `manualskip` | 1-based layer numbers to bypass, e.g. `2 4 8` or `2,4,8` |
 
 ### Task arguments
@@ -236,6 +255,9 @@ strategy = get_strategy("caml", confidence_threshold=0.9)
 # GateSkip: skip up to 30% of low-change layers
 strategy = get_strategy("gateskip", skip_budget=0.3)
 
+# CalibratedSkip: carry metadata for a saved calibration run
+strategy = get_strategy("calibratedskip")
+
 # ManualSkip: bypass layers 2, 4, and 8
 strategy = get_strategy("manualskip", skip_layers=[2, 4, 8])
 ```
@@ -262,6 +284,7 @@ LayerSkip/
 ├── setup.py
 ├── evaluation/
 │   ├── evaluator.py           # Evaluation orchestrator
+│   ├── calibration.py          # Layer-importance calibration and metric saving
 │   ├── models/
 │   │   ├── base_model.py      # Abstract LM interface
 │   │   └── hf_model.py        # HuggingFace model wrapper
@@ -270,6 +293,7 @@ LayerSkip/
 │   │   ├── layerskip.py       # Static early-exit strategy
 │   │   ├── caml.py            # Confidence-adaptive strategy
 │   │   ├── gateskip.py        # Gate/change-based strategy
+│   │   ├── calibratedskip.py  # Calibration-selected layer bypass strategy
 │   │   └── manualskip.py      # User-selected layer bypass strategy
 │   ├── tasks/
 │   │   ├── base_task.py       # Abstract task base class
@@ -321,6 +345,22 @@ layers: `||h_l − h_{l−1}|| / ||h_{l−1}||`. Layers where this change is bel
 `gate_threshold` are considered low-importance and counted as skipped, up to
 `skip_budget` fraction of the total. The strategy returns the last
 high-importance layer as the exit point.
+
+### CalibratedSkip
+
+Before evaluating each task, CalibratedSkip builds teacher-forcing calibration
+requests from labeled examples. It prefers the task validation split, falls back
+to training when validation is unavailable, and finally uses the test/evaluation
+split when neither exists. It currently saves two layer-level metrics:
+
+- `activation_ratio`: fraction of positive values in each layer's output hidden
+  states over non-padding tokens.
+- `gradient_trace`: layer-level sum of `abs(weight * loss_gradient)` over the
+  layer's parameters, using the calibration labels.
+
+CalibratedSkip does not automatically bypass any layers. It only writes the
+per-layer metrics so you can inspect them offline. After choosing layers from
+the saved metrics, run ManualSkip with those 1-based layer numbers.
 
 ### ManualSkip
 

@@ -61,6 +61,26 @@ def test_build_strategy_kwargs_for_manualskip():
     assert _build_strategy_kwargs(args, "manualskip") == {"skip_layers": [2, 4, 8]}
 
 
+def test_build_strategy_kwargs_for_calibratedskip():
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "--strategy",
+            "calibratedskip",
+            "--calibratedskip_metrics",
+            "activation_ratio",
+            "gradient_trace",
+            "--calibration_max_samples",
+            "16",
+        ]
+    )
+
+    assert _build_strategy_kwargs(args, "calibratedskip") == {
+        "calibration_metrics": ["activation_ratio", "gradient_trace"],
+        "calibration_max_samples": 16,
+    }
+
+
 def test_as_local_path_prefixes_hub_id():
     assert _as_local_path("cais/mmlu") == "/data/cais/mmlu"
 

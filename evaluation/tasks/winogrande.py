@@ -70,6 +70,13 @@ class WinoGrandeTask(BaseTask):
     def _load_fewshot_dataset(self):
         return self._load_split("train")
 
+    def _load_calibration_dataset(self):
+        return self._load_split("validation")
+
+    @property
+    def calibration_split_name(self) -> str:
+        return "validation"
+
     def fewshot_examples(self, k: int, rng) -> List[Dict[str, Any]]:
         if k == 0:
             return []

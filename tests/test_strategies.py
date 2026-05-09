@@ -7,6 +7,7 @@ from evaluation.strategies import get_strategy, STRATEGY_REGISTRY
 from evaluation.strategies.layerskip import LayerSkipStrategy
 from evaluation.strategies.caml import CAMLStrategy
 from evaluation.strategies.gateskip import GateSkipStrategy
+from evaluation.strategies.calibratedskip import CalibratedSkipStrategy
 from evaluation.strategies.manualskip import ManualSkipStrategy
 
 
@@ -41,6 +42,7 @@ def test_strategy_registry_keys():
     assert "layerskip" in STRATEGY_REGISTRY
     assert "caml" in STRATEGY_REGISTRY
     assert "gateskip" in STRATEGY_REGISTRY
+    assert "calibratedskip" in STRATEGY_REGISTRY
     assert "manualskip" in STRATEGY_REGISTRY
 
 
@@ -294,6 +296,43 @@ class TestManualSkipStrategy:
 
 
 # ------------------------------------------------------------------ #
+# CalibratedSkipStrategy                                               #
+# ------------------------------------------------------------------ #
+
+class TestCalibratedSkipStrategy:
+
+    def test_allows_empty_layers_before_calibration(self):
+        s = CalibratedSkipStrategy(skip_layers=[])
+        assert s.skip_layers == ()
+        assert s.get_skipped_layer_indices(8) == ()
+
+    def test_get_skipped_layer_indices_zero_based(self):
+        s = CalibratedSkipStrategy(skip_layers=[2, 4])
+        assert s.get_skipped_layer_indices(8) == (1, 3)
+
+    def test_strategy_name(self):
+        assert CalibratedSkipStrategy(skip_layers=[2]).name == "calibratedskip"
+
+    def test_config_has_calibration_metadata_only(self):
+        s = CalibratedSkipStrategy(
+            calibration_metrics=["activation_ratio"],
+            metrics_path="metrics.json",
+            calibration_split="validation",
+        )
+        assert s.config == {
+            "skip_layers": [],
+            "calibration_metrics": ["activation_ratio"],
+            "metrics_path": "metrics.json",
+            "calibration_split": "validation",
+        }
+
+    def test_get_strategy_factory(self):
+        s = get_strategy("calibratedskip", skip_layers=[2, 4])
+        assert isinstance(s, CalibratedSkipStrategy)
+        assert s.skip_layers == (2, 4)
+
+
+# ------------------------------------------------------------------ #
 # Cross-strategy consistency                                           #
 # ------------------------------------------------------------------ #
 
@@ -309,6 +348,7 @@ class TestStrategyCrossConsistency:
             LayerSkipStrategy(exit_ratio=0.75),
             CAMLStrategy(confidence_threshold=0.9),
             GateSkipStrategy(gate_threshold=0.01),
+            CalibratedSkipStrategy(skip_layers=[2, 4]),
             ManualSkipStrategy(skip_layers=[2, 4]),
         ]
         for strat in strategies:
@@ -325,6 +365,7 @@ class TestStrategyCrossConsistency:
             LayerSkipStrategy(),
             CAMLStrategy(),
             GateSkipStrategy(),
+            CalibratedSkipStrategy(skip_layers=[2, 4]),
             ManualSkipStrategy(skip_layers=[2, 4]),
         ]
         for strat in strategies:

@@ -67,6 +67,13 @@ class HellaSwagTask(BaseTask):
 
         return load_dataset(self.DATASET_PATH, split="validation")
 
+    def _load_calibration_dataset(self):
+        return self._load_dataset()
+
+    @property
+    def calibration_split_name(self) -> str:
+        return "validation"
+
     def doc_to_text(self, doc: Dict[str, Any]) -> str:
         ctx = _preprocess(doc["ctx"])
         return f"{ctx}"

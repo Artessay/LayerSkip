@@ -122,6 +122,23 @@ class HFModel(BaseLM):
             return ()
         return tuple(self.strategy.get_skipped_layer_indices(self._num_layers))
 
+    @property
+    def num_layers(self) -> int:
+        return self._num_layers
+
+    def set_strategy(self, strategy: Optional[BaseLayerSkipStrategy]) -> None:
+        """Update the active strategy and refresh layer-bypass bookkeeping."""
+        self.strategy = strategy
+        self._use_strategy = strategy is not None
+        self._bypass_layer_indices = self._get_strategy_bypass_layer_indices()
+        self._transformer_layers = None
+        if self._bypass_layer_indices:
+            self._transformer_layers = self._resolve_transformer_layers()
+            logger.info(
+                "Bypassing transformer layers: %s",
+                [idx + 1 for idx in self._bypass_layer_indices],
+            )
+
     def _resolve_transformer_layers(self) -> Sequence[torch.nn.Module]:
         """Return the model's transformer block list for manual layer bypass."""
         inner = getattr(self.model, "model", None)
@@ -196,6 +213,187 @@ class HFModel(BaseLM):
     def _forward_model(self, **kwargs):
         with self._bypass_transformer_layers():
             return self.model(**kwargs)
+
+    def _zero_model_grad(self) -> None:
+        try:
+            self.model.zero_grad(set_to_none=True)
+        except TypeError:
+            self.model.zero_grad()
+
+    def _build_teacher_forced_batch(
+        self,
+        requests: List[Tuple[str, str]],
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        ctx_encodings = [self._encode_prompt_ids(context) for context, _ in requests]
+        cont_encodings = [
+            self.tokenizer.encode(continuation, add_special_tokens=False)
+            for _, continuation in requests
+        ]
+
+        full_ids = []
+        context_lengths = []
+        for ctx_ids, cont_ids in zip(ctx_encodings, cont_encodings):
+            full_ids.append(ctx_ids + cont_ids)
+            context_lengths.append(len(ctx_ids))
+
+        max_len = max(len(token_ids) for token_ids in full_ids)
+        pad_id = self.tokenizer.pad_token_id
+
+        input_ids_list = []
+        attention_mask_list = []
+        labels_list = []
+        for token_ids, context_len in zip(full_ids, context_lengths):
+            pad_len = max_len - len(token_ids)
+            padded = [pad_id] * pad_len + token_ids
+            attention_mask = [0] * pad_len + [1] * len(token_ids)
+            labels = list(padded)
+            label_start = pad_len + context_len
+            for label_idx in range(label_start):
+                labels[label_idx] = -100
+            for label_idx, mask_value in enumerate(attention_mask):
+                if mask_value == 0:
+                    labels[label_idx] = -100
+
+            input_ids_list.append(padded)
+            attention_mask_list.append(attention_mask)
+            labels_list.append(labels)
+
+        input_ids = torch.tensor(input_ids_list, dtype=torch.long, device=self._device)
+        attention_mask = torch.tensor(
+            attention_mask_list,
+            dtype=torch.long,
+            device=self._device,
+        )
+        labels = torch.tensor(labels_list, dtype=torch.long, device=self._device)
+        return input_ids, attention_mask, labels
+
+    def compute_layer_calibration_metrics(
+        self,
+        requests: List[Tuple[str, str]],
+        metrics: Sequence[str],
+        batch_size: Optional[int] = None,
+    ) -> Dict[str, object]:
+        """
+        Compute layer-level activation and gradient-trajectory metrics.
+
+        ``activation_ratio`` is the fraction of positive hidden-state values in
+        each layer output, averaged over non-padding tokens. ``gradient_trace``
+        is the layer-level sum of ``abs(weight * loss_gradient)`` over that
+        layer's parameters, averaged over calibration batches.
+        """
+        metric_set = set(metrics)
+        unsupported = metric_set - {"activation_ratio", "gradient_trace"}
+        if unsupported:
+            raise ValueError(f"Unsupported calibration metrics: {sorted(unsupported)}")
+        if not requests:
+            raise ValueError("At least one calibration request is required")
+
+        effective_batch_size = max(1, int(batch_size or self._batch_size))
+        needs_activation = "activation_ratio" in metric_set
+        needs_gradient = "gradient_trace" in metric_set
+
+        activation_active = torch.zeros(self._num_layers, dtype=torch.float64)
+        activation_total = torch.zeros(self._num_layers, dtype=torch.float64)
+        gradient_trace = torch.zeros(self._num_layers, dtype=torch.float64)
+        gradient_batches = 0
+        transformer_layers = self._resolve_transformer_layers() if needs_gradient else None
+
+        was_training = bool(getattr(self.model, "training", False))
+        self.model.eval()
+
+        batch_offsets = range(0, len(requests), effective_batch_size)
+        try:
+            for offset in progress(
+                batch_offsets,
+                desc="calibration: layer metrics",
+                total=(len(requests) + effective_batch_size - 1) // effective_batch_size,
+                unit="batch",
+            ):
+                batch_requests = requests[offset : offset + effective_batch_size]
+                input_ids, attention_mask, labels = self._build_teacher_forced_batch(
+                    batch_requests
+                )
+
+                if input_ids.shape[1] < 2:
+                    continue
+
+                if needs_gradient:
+                    self._zero_model_grad()
+
+                with torch.set_grad_enabled(needs_gradient):
+                    outputs = self._forward_model(
+                        input_ids=input_ids,
+                        attention_mask=attention_mask,
+                        output_hidden_states=needs_activation,
+                        use_cache=False,
+                    )
+
+                    if needs_activation:
+                        token_mask = attention_mask.unsqueeze(-1)
+                        for layer_idx in range(self._num_layers):
+                            hidden = outputs.hidden_states[layer_idx + 1]
+                            hidden_mask = token_mask.to(device=hidden.device, dtype=hidden.dtype)
+                            active = ((hidden > 0).to(hidden.dtype) * hidden_mask).sum()
+                            total = hidden_mask.sum() * hidden.shape[-1]
+                            activation_active[layer_idx] += float(active.detach().cpu())
+                            activation_total[layer_idx] += float(total.detach().cpu())
+
+                    if needs_gradient:
+                        shift_logits = outputs.logits[:, :-1, :].contiguous()
+                        shift_labels = labels[:, 1:].contiguous()
+                        valid_labels = shift_labels.ne(-100).sum()
+                        if int(valid_labels.item()) == 0:
+                            continue
+                        loss = F.cross_entropy(
+                            shift_logits.view(-1, shift_logits.size(-1)),
+                            shift_labels.view(-1),
+                            ignore_index=-100,
+                            reduction="sum",
+                        )
+                        loss = loss / max(1, len(batch_requests))
+                        loss.backward()
+
+                        for layer_idx, layer in enumerate(transformer_layers or []):
+                            layer_score = 0.0
+                            for parameter in layer.parameters():
+                                if parameter.grad is None:
+                                    continue
+                                score = torch.abs(
+                                    parameter.detach().float()
+                                    * parameter.grad.detach().float()
+                                ).sum()
+                                layer_score += float(score.cpu())
+                            gradient_trace[layer_idx] += layer_score
+                        gradient_batches += 1
+        finally:
+            if needs_gradient:
+                self._zero_model_grad()
+            if was_training:
+                self.model.train()
+
+        layers = []
+        for layer_idx in range(self._num_layers):
+            layer_metrics: Dict[str, object] = {"layer": layer_idx + 1}
+            if needs_activation:
+                total = activation_total[layer_idx].item()
+                layer_metrics["activation_ratio"] = (
+                    activation_active[layer_idx].item() / total if total > 0 else 0.0
+                )
+            if needs_gradient:
+                layer_metrics["gradient_trace"] = (
+                    gradient_trace[layer_idx].item() / gradient_batches
+                    if gradient_batches
+                    else 0.0
+                )
+            layers.append(layer_metrics)
+
+        return {
+            "num_layers": self._num_layers,
+            "num_samples": len(requests),
+            "num_batches": (len(requests) + effective_batch_size - 1) // effective_batch_size,
+            "metrics": sorted(metric_set),
+            "layers": layers,
+        }
 
     def _get_layer_norm(self):
         """Return the model's final layer-norm module (architecture-agnostic)."""

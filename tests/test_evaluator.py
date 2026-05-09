@@ -158,6 +158,17 @@ class TestEvaluatorBuildModel:
         assert call_kwargs["strategy"].skip_budget == 0.2
 
     @patch("evaluation.evaluator.HFModel")
+    def test_build_model_with_calibratedskip_starts_without_strategy(self, MockHFModel):
+        ev = Evaluator(
+            model_name="mock-model",
+            strategy_name="calibratedskip",
+            strategy_kwargs={"calibration_metrics": ["activation_ratio"]},
+        )
+        ev._build_model()
+        call_kwargs = MockHFModel.call_args[1]
+        assert call_kwargs["strategy"] is None
+
+    @patch("evaluation.evaluator.HFModel")
     def test_build_model_with_manualskip(self, MockHFModel):
         ev = Evaluator(
             model_name="mock-model",
@@ -281,3 +292,55 @@ class TestEvaluatorRun:
             assert saved["evaluation_config"]["runtime"]["batch_size"] == 2
             assert "max_length" not in saved["evaluation_config"]["runtime"]
             assert saved["evaluation_config"]["task"]["resolved_kwargs"]["max_samples"] == 10
+
+    @patch("evaluation.evaluator.calibrate_task_layers")
+    @patch("evaluation.evaluator.HFModel")
+    @patch("evaluation.evaluator.get_task")
+    def test_run_calibratedskip_sets_task_strategy(
+        self,
+        mock_get_task,
+        MockHFModel,
+        mock_calibrate_task_layers,
+        tmp_path,
+    ):
+        mock_task = MagicMock()
+        mock_task.evaluate.return_value = {"accuracy": 0.7}
+        mock_task.num_fewshot = 0
+        mock_task.max_samples = None
+        mock_task.seed = 42
+        mock_get_task.return_value = mock_task
+
+        mock_model_instance = MagicMock()
+        mock_model_instance.strategy = None
+
+        def set_strategy(strategy):
+            mock_model_instance.strategy = strategy
+
+        mock_model_instance.set_strategy.side_effect = set_strategy
+        MockHFModel.return_value = mock_model_instance
+        mock_calibrate_task_layers.return_value = {
+            "metrics_file": str(tmp_path / "calibration.json"),
+            "skip_layers": [2, 4],
+            "calibration_split": "validation",
+            "layers": [],
+            "config": {},
+        }
+
+        ev = Evaluator(
+            model_name="mock-model",
+            strategy_name="calibratedskip",
+            strategy_kwargs={
+                "calibration_metrics": ["activation_ratio"],
+            },
+            tasks=["mmlu"],
+            results_dir=tmp_path,
+        )
+        result = ev.run()
+
+        from evaluation.strategies.calibratedskip import CalibratedSkipStrategy
+
+        assert isinstance(mock_model_instance.strategy, CalibratedSkipStrategy)
+        assert mock_model_instance.strategy.skip_layers == ()
+        assert result["calibration_files"] == {
+            "mmlu": str(tmp_path / "calibration.json")
+        }

@@ -8,12 +8,14 @@ Reference:
     Hendrycks et al., 2020. https://arxiv.org/abs/2009.03300
 """
 
+import logging
 from typing import Any, Dict, List, Optional
 
 from evaluation.tasks.base_task import BaseTask
 from evaluation.utils.progress import progress
 
 _CHOICES = ["A", "B", "C", "D"]
+logger = logging.getLogger(__name__)
 
 # Subjects grouped for convenience; all 57 subjects are evaluated by default
 _ALL_SUBJECTS = [
@@ -66,33 +68,45 @@ class MMLUTask(BaseTask):
         super().__init__(num_fewshot=num_fewshot, max_samples=max_samples, seed=seed)
         self.subjects = subjects if subjects is not None else _ALL_SUBJECTS
 
-    def _load_dataset(self):
+    def _load_subject_split(self, split: str, desc: str):
         from datasets import load_dataset, concatenate_datasets
 
         splits = []
         for subject in progress(
             self.subjects,
-            desc="mmlu: load test subjects",
+            desc=desc,
             total=len(self.subjects),
             unit="subject",
         ):
-            ds = load_dataset(self.DATASET_PATH, subject, split="test")
+            ds = load_dataset(self.DATASET_PATH, subject, split=split)
             splits.append(ds)
         return concatenate_datasets(splits) if len(splits) > 1 else splits[0]
+
+    def _load_dataset(self):
+        return self._load_subject_split("test", "mmlu: load test subjects")
 
     def _load_fewshot_dataset(self):
-        from datasets import load_dataset, concatenate_datasets
+        return self._load_subject_split("dev", "mmlu: load dev subjects")
 
-        splits = []
-        for subject in progress(
-            self.subjects,
-            desc="mmlu: load dev subjects",
-            total=len(self.subjects),
-            unit="subject",
-        ):
-            ds = load_dataset(self.DATASET_PATH, subject, split="dev")
-            splits.append(ds)
-        return concatenate_datasets(splits) if len(splits) > 1 else splits[0]
+    def _load_calibration_dataset(self):
+        last_error = None
+        for split in ("validation", "train", "dev", "test"):
+            try:
+                dataset = self._load_subject_split(
+                    split,
+                    f"mmlu: load calibration {split} subjects",
+                )
+            except Exception as exc:
+                last_error = exc
+                logger.debug("MMLU calibration split '%s' unavailable: %s", split, exc)
+                continue
+            self._calibration_split_name = split
+            return dataset
+        raise RuntimeError("No MMLU calibration split could be loaded") from last_error
+
+    @property
+    def calibration_split_name(self) -> str:
+        return getattr(self, "_calibration_split_name", "validation")
 
     def fewshot_examples(self, k: int, rng) -> List[Dict[str, Any]]:
         if k == 0:

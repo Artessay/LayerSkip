@@ -136,6 +136,60 @@ class _MockLayerBypassModel(_MockModel):
         return SimpleNamespace(hidden_states=tuple(states), logits=hidden)
 
 
+class _ToyCalibrationLayer:
+    def __init__(self, scale):
+        import torch
+
+        self.weight = torch.nn.Parameter(torch.tensor([scale], dtype=torch.float32))
+
+    def parameters(self):
+        return [self.weight]
+
+    def forward(self, hidden_states, **kwargs):
+        return (hidden_states * self.weight,)
+
+    def __call__(self, *args, **kwargs):
+        return self.forward(*args, **kwargs)
+
+
+class _MockCalibrationModel(_MockModel):
+    def __init__(self):
+        import torch
+
+        super().__init__()
+        self.config = SimpleNamespace(num_hidden_layers=2)
+        self.layers = [_ToyCalibrationLayer(1.5), _ToyCalibrationLayer(0.5)]
+        self.model = SimpleNamespace(layers=self.layers, norm=torch.nn.Identity())
+        self.lm_head = torch.nn.Linear(1, 256, bias=False)
+
+    def zero_grad(self, set_to_none=False):
+        for parameter in self.parameters():
+            parameter.grad = None
+
+    def parameters(self):
+        params = []
+        for layer in self.layers:
+            params.extend(layer.parameters())
+        params.extend(self.lm_head.parameters())
+        return params
+
+    def __call__(
+        self,
+        input_ids,
+        attention_mask=None,
+        output_hidden_states=False,
+        use_cache=False,
+        **kwargs,
+    ):
+        hidden = input_ids.float().unsqueeze(-1) / 100.0
+        states = [hidden.clone()] if output_hidden_states else None
+        for layer in self.layers:
+            hidden = layer(hidden)[0]
+            if output_hidden_states:
+                states.append(hidden.clone())
+        return SimpleNamespace(logits=self.lm_head(hidden), hidden_states=tuple(states) if states else None)
+
+
 def test_init_clears_model_generation_max_length(monkeypatch):
     mock_model = _MockModel()
 
@@ -309,3 +363,30 @@ def test_manualskip_bypasses_configured_transformer_layers(monkeypatch):
 
     restored = mock_model.layers[1](torch.zeros(1, 1, 1))[0]
     assert restored.item() == 1.0
+
+
+def test_compute_layer_calibration_metrics(monkeypatch):
+    mock_model = _MockCalibrationModel()
+    fake_transformers = SimpleNamespace(
+        AutoTokenizer=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: _MockTokenizer(),
+        ),
+        AutoModelForCausalLM=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: mock_model,
+        ),
+    )
+    monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+    model = HFModel("mock-model", device="cpu")
+    metrics = model.compute_layer_calibration_metrics(
+        requests=[("prompt", " answer"), ("other", " label")],
+        metrics=["activation_ratio", "gradient_trace"],
+        batch_size=1,
+    )
+
+    assert metrics["num_layers"] == 2
+    assert metrics["num_samples"] == 2
+    assert len(metrics["layers"]) == 2
+    for layer in metrics["layers"]:
+        assert 0.0 <= layer["activation_ratio"] <= 1.0
+        assert layer["gradient_trace"] >= 0.0

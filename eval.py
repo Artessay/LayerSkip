@@ -18,6 +18,7 @@ python eval.py \\
 python eval.py \\
     --model meta-llama/Meta-Llama-3-8B-Instruct \\
     --strategy layerskip caml gateskip manualskip \\
+    --manualskip_layers 2 4 8 \\
     --tasks winogrande \\
     --batch_size 4 \\
     --output results
@@ -41,6 +42,14 @@ python eval.py \\
     --model meta-llama/Llama-3.2-1B-Instruct \\
     --strategy manualskip \\
     --manualskip_layers 2 4 8 \\
+    --tasks mmlu
+
+# CalibratedSkip: compute layer metrics on the task calibration split and save
+# them for manual inspection:
+python eval.py \\
+    --model meta-llama/Llama-3.2-1B-Instruct \\
+    --strategy calibratedskip \\
+    --calibration_max_samples 64 \\
     --tasks mmlu
 """
 
@@ -184,6 +193,25 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="N",
         help="GateSkip: minimum layers before skipping is considered (default: 4).",
     )
+    # CalibratedSkip-specific
+    strategy_group.add_argument(
+        "--calibratedskip_metrics",
+        nargs="+",
+        default=["activation_ratio", "gradient_trace"],
+        choices=["activation_ratio", "gradient_trace"],
+        metavar="METRIC",
+        help=(
+            "CalibratedSkip: layer metrics to compute and save "
+            "(default: activation_ratio gradient_trace)."
+        ),
+    )
+    strategy_group.add_argument(
+        "--calibration_max_samples",
+        type=int,
+        default=None,
+        metavar="N",
+        help="CalibratedSkip: cap calibration examples per task (default: all).",
+    )
     # ManualSkip-specific
     strategy_group.add_argument(
         "--manualskip_layers",
@@ -307,6 +335,11 @@ def _build_strategy_kwargs(args: argparse.Namespace, strategy_name: str) -> Dict
             "gate_threshold": args.gateskip_gate_threshold,
             "skip_budget": args.gateskip_skip_budget,
             "min_layers": args.gateskip_min_layers,
+        }
+    if strategy_name == "calibratedskip":
+        return {
+            "calibration_metrics": args.calibratedskip_metrics,
+            "calibration_max_samples": args.calibration_max_samples,
         }
     if strategy_name == "manualskip":
         return {"skip_layers": _parse_manualskip_layers(args.manualskip_layers)}
