@@ -69,14 +69,21 @@ def test_build_strategy_kwargs_for_calibratedskip():
             "calibratedskip",
             "--calibratedskip_metrics",
             "activation_ratio",
+            "gradient_value",
             "gradient_trace",
+            "shapley_value",
             "--calibration_max_samples",
             "16",
         ]
     )
 
     assert _build_strategy_kwargs(args, "calibratedskip") == {
-        "calibration_metrics": ["activation_ratio", "gradient_trace"],
+        "calibration_metrics": [
+            "activation_ratio",
+            "gradient_value",
+            "gradient_trace",
+            "shapley_value",
+        ],
         "calibration_max_samples": 16,
     }
 

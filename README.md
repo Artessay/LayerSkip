@@ -142,13 +142,25 @@ python eval.py \
 
 ### CalibratedSkip from layer importance metrics
 
+
+```bash
+python eval.py \
+  --model meta-llama/Meta-Llama-3-8B-Instruct \
+  --strategy calibratedskip \
+  --calibratedskip_metrics activation_ratio gradient_value gradient_trace shapley_value \
+  --calibration_max_samples 4096 \
+  --tasks mmlu hellaswag winogrande gsm8k humaneval \
+  --local
+```
+
 ```bash
 python eval.py \
   --model meta-llama/Llama-3.2-1B-Instruct \
   --strategy calibratedskip \
-  --calibratedskip_metrics activation_ratio gradient_trace \
-  --calibration_max_samples 1024 \
-  --tasks mmlu hellaswag winogrande gsm8k humaneval
+  --calibratedskip_metrics activation_ratio gradient_value gradient_trace shapley_value \
+  --calibration_max_samples 4096 \
+  --tasks mmlu hellaswag winogrande gsm8k humaneval \
+  --local
 ```
 
 For each task, CalibratedSkip saves a JSON file under
@@ -187,7 +199,7 @@ python eval.py --help
 | `--gateskip_gate_threshold` | `0.01` | Relative-change threshold (GateSkip) |
 | `--gateskip_skip_budget` | `0.3` | Max fraction of layers to skip (GateSkip) |
 | `--gateskip_min_layers` | `4` | Minimum layers before skipping (GateSkip) |
-| `--calibratedskip_metrics` | `activation_ratio gradient_trace` | Metrics to compute and save for every layer |
+| `--calibratedskip_metrics` | `activation_ratio gradient_trace` | Metrics to compute and save for every layer: `activation_ratio`, `gradient_value`, `gradient_trace`, `shapley_value` |
 | `--calibration_max_samples` | all | Cap calibration examples per task |
 | `--manualskip_layers` | required for `manualskip` | 1-based layer numbers to bypass, e.g. `2 4 8` or `2,4,8` |
 
@@ -351,12 +363,16 @@ high-importance layer as the exit point.
 Before evaluating each task, CalibratedSkip builds teacher-forcing calibration
 requests from labeled examples. It prefers the task validation split, falls back
 to training when validation is unavailable, and finally uses the test/evaluation
-split when neither exists. It currently saves two layer-level metrics:
+split when neither exists. It supports four layer-level metrics:
 
 - `activation_ratio`: fraction of positive values in each layer's output hidden
   states over non-padding tokens.
+- `gradient_value`: layer-level sum of `abs(loss_gradient)` over the layer's
+  parameters, using the calibration labels.
 - `gradient_trace`: layer-level sum of `abs(weight * loss_gradient)` over the
   layer's parameters, using the calibration labels.
+- `shapley_value`: layer-level sum of row-wise Shapley values over each 2D
+  parameter, using a Fisher-information approximation to the Hessian.
 
 CalibratedSkip does not automatically bypass any layers. It only writes the
 per-layer metrics so you can inspect them offline. After choosing layers from

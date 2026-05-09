@@ -35,6 +35,25 @@ SUPPORTED_MODELS = [
 ]
 
 
+@torch.no_grad()
+def calculate_shapley_value(param: torch.nn.Parameter) -> torch.Tensor:
+    """Calculate row-level Shapley values for a 2D parameter tensor."""
+    assert param.grad is not None
+    assert param.ndim == 2, (
+        "Shapley value calculation now is only supported for 2D parameters."
+    )
+
+    weight = param.detach().float()
+    gradient = param.grad.detach().float()
+    hessian_matrix = torch.matmul(gradient, gradient.T)
+    individual_importance = -torch.sum(gradient * weight, dim=1)
+    cooperative_interactions = -0.5 * torch.sum(
+        weight * torch.matmul(hessian_matrix, weight),
+        dim=1,
+    )
+    return individual_importance + cooperative_interactions
+
+
 class HFModel(BaseLM):
     """
     HuggingFace causal LM wrapper with optional layer-skipping strategy.
@@ -274,15 +293,25 @@ class HFModel(BaseLM):
         batch_size: Optional[int] = None,
     ) -> Dict[str, object]:
         """
-        Compute layer-level activation and gradient-trajectory metrics.
+        Compute layer-level activation, gradient, gradient-trajectory, and Shapley metrics.
 
         ``activation_ratio`` is the fraction of positive hidden-state values in
-        each layer output, averaged over non-padding tokens. ``gradient_trace``
-        is the layer-level sum of ``abs(weight * loss_gradient)`` over that
-        layer's parameters, averaged over calibration batches.
+        each layer output, averaged over non-padding tokens. ``gradient_value``
+        is the layer-level sum of ``abs(loss_gradient)`` over that layer's
+        parameters. ``gradient_trace`` is the layer-level sum of
+        ``abs(weight * loss_gradient)`` over that layer's parameters.
+        ``shapley_value`` sums the row-level Shapley values for each 2D
+        parameter in the layer. Gradient-based metrics are averaged over
+        calibration batches.
         """
         metric_set = set(metrics)
-        unsupported = metric_set - {"activation_ratio", "gradient_trace"}
+        supported_metrics = {
+            "activation_ratio",
+            "gradient_value",
+            "gradient_trace",
+            "shapley_value",
+        }
+        unsupported = metric_set - supported_metrics
         if unsupported:
             raise ValueError(f"Unsupported calibration metrics: {sorted(unsupported)}")
         if not requests:
@@ -290,11 +319,18 @@ class HFModel(BaseLM):
 
         effective_batch_size = max(1, int(batch_size or self._batch_size))
         needs_activation = "activation_ratio" in metric_set
-        needs_gradient = "gradient_trace" in metric_set
+        needs_gradient = bool(
+            metric_set & {"gradient_value", "gradient_trace", "shapley_value"}
+        )
+        needs_gradient_value = "gradient_value" in metric_set
+        needs_gradient_trace = "gradient_trace" in metric_set
+        needs_shapley = "shapley_value" in metric_set
 
         activation_active = torch.zeros(self._num_layers, dtype=torch.float64)
         activation_total = torch.zeros(self._num_layers, dtype=torch.float64)
+        gradient_value = torch.zeros(self._num_layers, dtype=torch.float64)
         gradient_trace = torch.zeros(self._num_layers, dtype=torch.float64)
+        shapley_value = torch.zeros(self._num_layers, dtype=torch.float64)
         gradient_batches = 0
         transformer_layers = self._resolve_transformer_layers() if needs_gradient else None
 
@@ -354,16 +390,32 @@ class HFModel(BaseLM):
                         loss.backward()
 
                         for layer_idx, layer in enumerate(transformer_layers or []):
+                            layer_gradient = 0.0
                             layer_score = 0.0
+                            layer_shapley = 0.0
                             for parameter in layer.parameters():
                                 if parameter.grad is None:
                                     continue
-                                score = torch.abs(
-                                    parameter.detach().float()
-                                    * parameter.grad.detach().float()
-                                ).sum()
-                                layer_score += float(score.cpu())
-                            gradient_trace[layer_idx] += layer_score
+                                if needs_gradient_value:
+                                    score = torch.abs(
+                                        parameter.grad.detach().float()
+                                    ).sum()
+                                    layer_gradient += float(score.cpu())
+                                if needs_gradient_trace:
+                                    score = torch.abs(
+                                        parameter.detach().float()
+                                        * parameter.grad.detach().float()
+                                    ).sum()
+                                    layer_score += float(score.cpu())
+                                if needs_shapley and parameter.ndim == 2:
+                                    score = calculate_shapley_value(parameter).sum()
+                                    layer_shapley += float(score.cpu())
+                            if needs_gradient_value:
+                                gradient_value[layer_idx] += layer_gradient
+                            if needs_gradient_trace:
+                                gradient_trace[layer_idx] += layer_score
+                            if needs_shapley:
+                                shapley_value[layer_idx] += layer_shapley
                         gradient_batches += 1
         finally:
             if needs_gradient:
@@ -380,11 +432,24 @@ class HFModel(BaseLM):
                     activation_active[layer_idx].item() / total if total > 0 else 0.0
                 )
             if needs_gradient:
-                layer_metrics["gradient_trace"] = (
-                    gradient_trace[layer_idx].item() / gradient_batches
-                    if gradient_batches
-                    else 0.0
-                )
+                if needs_gradient_value:
+                    layer_metrics["gradient_value"] = (
+                        gradient_value[layer_idx].item() / gradient_batches
+                        if gradient_batches
+                        else 0.0
+                    )
+                if needs_gradient_trace:
+                    layer_metrics["gradient_trace"] = (
+                        gradient_trace[layer_idx].item() / gradient_batches
+                        if gradient_batches
+                        else 0.0
+                    )
+                if needs_shapley:
+                    layer_metrics["shapley_value"] = (
+                        shapley_value[layer_idx].item() / gradient_batches
+                        if gradient_batches
+                        else 0.0
+                    )
             layers.append(layer_metrics)
 
         return {

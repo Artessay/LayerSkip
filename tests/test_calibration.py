@@ -9,10 +9,34 @@ from evaluation.calibration import calibrate_task_layers
 
 def _make_layers():
     return [
-        {"layer": 1, "activation_ratio": 0.1, "gradient_trace": 9.0},
-        {"layer": 2, "activation_ratio": 0.4, "gradient_trace": 1.0},
-        {"layer": 3, "activation_ratio": 0.2, "gradient_trace": 3.0},
-        {"layer": 4, "activation_ratio": 0.8, "gradient_trace": 2.0},
+        {
+            "layer": 1,
+            "activation_ratio": 0.1,
+            "gradient_value": 10.0,
+            "gradient_trace": 9.0,
+            "shapley_value": -1.0,
+        },
+        {
+            "layer": 2,
+            "activation_ratio": 0.4,
+            "gradient_value": 20.0,
+            "gradient_trace": 1.0,
+            "shapley_value": -2.0,
+        },
+        {
+            "layer": 3,
+            "activation_ratio": 0.2,
+            "gradient_value": 30.0,
+            "gradient_trace": 3.0,
+            "shapley_value": -3.0,
+        },
+        {
+            "layer": 4,
+            "activation_ratio": 0.8,
+            "gradient_value": 40.0,
+            "gradient_trace": 2.0,
+            "shapley_value": -4.0,
+        },
     ]
 
 
@@ -45,7 +69,12 @@ def test_calibrate_task_layers_saves_all_layer_metrics(tmp_path):
         model_name="org/mock-model",
         task_kwargs={"mocktask": {"seed": 123}},
         strategy_kwargs={
-            "calibration_metrics": ["activation_ratio", "gradient_trace"],
+            "calibration_metrics": [
+                "activation_ratio",
+                "gradient_value",
+                "gradient_trace",
+                "shapley_value",
+            ],
             "calibration_max_samples": 2,
         },
         batch_size=2,
@@ -64,3 +93,5 @@ def test_calibrate_task_layers_saves_all_layer_metrics(tmp_path):
     assert len(saved["layers"]) == 4
     assert "selected_for_skip" not in saved["layers"][1]
     assert saved["layers"][0]["activation_ratio"] == pytest.approx(0.1)
+    assert saved["layers"][0]["gradient_value"] == pytest.approx(10.0)
+    assert saved["layers"][0]["shapley_value"] == pytest.approx(-1.0)

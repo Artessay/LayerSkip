@@ -12,7 +12,13 @@ from evaluation.utils.result_io import config_hash, model_basename, save_json, s
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_CALIBRATION_METRICS = ("activation_ratio", "gradient_trace")
+SUPPORTED_CALIBRATION_METRICS = (
+    "activation_ratio",
+    "gradient_value",
+    "gradient_trace",
+    "shapley_value",
+)
+DEFAULT_CALIBRATION_METRICS = ("activation_ratio", "gradient_trace")
 
 
 def normalize_calibration_metrics(metrics: Iterable[str]) -> Tuple[str, ...]:
@@ -97,7 +103,7 @@ def calibrate_task_layers(
 ) -> Dict[str, Any]:
     """Compute and persist layer calibration metrics for one task."""
     metrics = normalize_calibration_metrics(
-        strategy_kwargs.get("calibration_metrics", SUPPORTED_CALIBRATION_METRICS)
+        strategy_kwargs.get("calibration_metrics", DEFAULT_CALIBRATION_METRICS)
     )
     max_samples = strategy_kwargs.get("calibration_max_samples")
 

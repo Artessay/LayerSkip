@@ -49,6 +49,7 @@ python eval.py \\
 python eval.py \\
     --model meta-llama/Llama-3.2-1B-Instruct \\
     --strategy calibratedskip \\
+    --calibratedskip_metrics activation_ratio gradient_value gradient_trace shapley_value \\
     --calibration_max_samples 64 \\
     --tasks mmlu
 """
@@ -198,7 +199,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--calibratedskip_metrics",
         nargs="+",
         default=["activation_ratio", "gradient_trace"],
-        choices=["activation_ratio", "gradient_trace"],
+        choices=[
+            "activation_ratio",
+            "gradient_value",
+            "gradient_trace",
+            "shapley_value",
+        ],
         metavar="METRIC",
         help=(
             "CalibratedSkip: layer metrics to compute and save "

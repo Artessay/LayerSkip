@@ -3,7 +3,7 @@
 import sys
 from types import SimpleNamespace
 
-from evaluation.models.hf_model import HFModel
+from evaluation.models.hf_model import HFModel, calculate_shapley_value
 from evaluation.strategies.manualskip import ManualSkipStrategy
 
 
@@ -140,7 +140,7 @@ class _ToyCalibrationLayer:
     def __init__(self, scale):
         import torch
 
-        self.weight = torch.nn.Parameter(torch.tensor([scale], dtype=torch.float32))
+        self.weight = torch.nn.Parameter(torch.tensor([[scale]], dtype=torch.float32))
 
     def parameters(self):
         return [self.weight]
@@ -365,6 +365,19 @@ def test_manualskip_bypasses_configured_transformer_layers(monkeypatch):
     assert restored.item() == 1.0
 
 
+def test_calculate_shapley_value_matches_reference_formula():
+    import torch
+
+    param = torch.nn.Parameter(
+        torch.tensor([[1.0, 2.0], [3.0, 4.0]], dtype=torch.float32)
+    )
+    param.grad = torch.tensor([[0.1, 0.2], [0.3, 0.4]], dtype=torch.float32)
+
+    shapley = calculate_shapley_value(param)
+
+    assert torch.allclose(shapley, torch.tensor([-1.23, -6.23]))
+
+
 def test_compute_layer_calibration_metrics(monkeypatch):
     mock_model = _MockCalibrationModel()
     fake_transformers = SimpleNamespace(
@@ -380,7 +393,12 @@ def test_compute_layer_calibration_metrics(monkeypatch):
     model = HFModel("mock-model", device="cpu")
     metrics = model.compute_layer_calibration_metrics(
         requests=[("prompt", " answer"), ("other", " label")],
-        metrics=["activation_ratio", "gradient_trace"],
+        metrics=[
+            "activation_ratio",
+            "gradient_value",
+            "gradient_trace",
+            "shapley_value",
+        ],
         batch_size=1,
     )
 
@@ -389,4 +407,6 @@ def test_compute_layer_calibration_metrics(monkeypatch):
     assert len(metrics["layers"]) == 2
     for layer in metrics["layers"]:
         assert 0.0 <= layer["activation_ratio"] <= 1.0
+        assert layer["gradient_value"] >= 0.0
         assert layer["gradient_trace"] >= 0.0
+        assert isinstance(layer["shapley_value"], float)
