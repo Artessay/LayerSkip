@@ -8,6 +8,7 @@ Reference:
     Sakaguchi et al., 2019. https://arxiv.org/abs/1907.10641
 """
 
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from evaluation.tasks.base_task import BaseTask
@@ -36,17 +37,46 @@ class WinoGrandeTask(BaseTask):
     def __init__(
         self,
         size: str = "winogrande_xl",
-        num_fewshot: int = 5,
+        num_fewshot: int = 0,
         max_samples: Optional[int] = None,
         seed: int = 42,
     ) -> None:
         super().__init__(num_fewshot=num_fewshot, max_samples=max_samples, seed=seed)
         self.size = size
 
-    def _load_dataset(self):
+    def _load_split(self, split: str):
         from datasets import load_dataset
 
-        return load_dataset(self.DATASET_PATH, self.size, split="validation")
+        local_path = Path(self.DATASET_PATH)
+        if local_path.exists():
+            split_files = []
+            for split_dir in (local_path / self.size, local_path):
+                if split_dir.exists():
+                    split_files = sorted(split_dir.glob(f"{split}-*.parquet"))
+                if split_files:
+                    break
+            if split_files:
+                return load_dataset(
+                    "parquet",
+                    data_files={split: [str(path) for path in split_files]},
+                    split=split,
+                )
+
+        return load_dataset(self.DATASET_PATH, self.size, split=split)
+
+    def _load_dataset(self):
+        return self._load_split("validation")
+
+    def _load_fewshot_dataset(self):
+        return self._load_split("train")
+
+    def fewshot_examples(self, k: int, rng) -> List[Dict[str, Any]]:
+        if k == 0:
+            return []
+        train = self._load_fewshot_dataset()
+        examples = list(train)
+        rng.shuffle(examples)
+        return examples[:k]
 
     def _partial_context(self, doc: Dict[str, Any], option: str) -> str:
         """Replace ``_`` with the given option in the sentence."""
@@ -60,7 +90,10 @@ class WinoGrandeTask(BaseTask):
 
     def doc_to_target(self, doc: Dict[str, Any]) -> str:
         answer_idx = int(doc["answer"]) - 1  # 1-indexed → 0-indexed
-        return doc[f"option{answer_idx + 1}"]
+        sentence = doc["sentence"]
+        idx = sentence.index("_")
+        suffix = sentence[idx + 1 :]
+        return doc[f"option{answer_idx + 1}"] + suffix
 
     def construct_requests(
         self, doc: Dict[str, Any], ctx: str
@@ -74,14 +107,13 @@ class WinoGrandeTask(BaseTask):
         """
         sentence = doc["sentence"]
         idx = sentence.index("_")
-        prefix = sentence[:idx]
         suffix = sentence[idx + 1 :]  # text after the blank
 
         requests = []
         for opt_key in ("option1", "option2"):
             option = doc[opt_key]
             continuation = option + suffix
-            requests.append((prefix, continuation))
+            requests.append((ctx, continuation))
         return requests
 
     def process_results(

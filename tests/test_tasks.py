@@ -55,6 +55,11 @@ def test_get_task_kwargs_override():
         ),
         pytest.param(lambda: HellaSwagTask(), "_load_dataset", id="hellaswag"),
         pytest.param(lambda: WinoGrandeTask(), "_load_dataset", id="winogrande"),
+        pytest.param(
+            lambda: WinoGrandeTask(),
+            "_load_fewshot_dataset",
+            id="winogrande-train",
+        ),
         pytest.param(lambda: GSM8KTask(), "_load_dataset", id="gsm8k-test"),
         pytest.param(lambda: GSM8KTask(), "_load_fewshot_dataset", id="gsm8k-train"),
         pytest.param(lambda: HumanEvalTask(), "_load_dataset", id="humaneval"),
@@ -249,6 +254,86 @@ class TestWinoGrandeTask:
         requests = task.construct_requests(doc, ctx)
         assert "Sarah" in requests[0][1]
         assert "Emma" in requests[1][1]
+
+    def test_doc_to_target_returns_full_completion(self):
+        task = WinoGrandeTask()
+        doc = self._make_doc()
+        assert task.doc_to_target(doc) == "Sarah was more patient."
+
+    def test_construct_requests_uses_supplied_context(self):
+        task = WinoGrandeTask()
+        doc = self._make_doc()
+        ctx = "Pat helped Lee because Pat was ready.\nSarah was nicer than Emma because "
+        requests = task.construct_requests(doc, ctx)
+        assert requests[0][0] == ctx
+        assert requests[1][0] == ctx
+
+    def test_fewshot_examples_samples_train_split(self, monkeypatch):
+        import random
+
+        task = WinoGrandeTask(num_fewshot=5)
+        docs = [
+            {**self._make_doc(), "answer": "1"},
+            {**self._make_doc(), "answer": "2"},
+            {**self._make_doc(), "option1": "Avery"},
+            {**self._make_doc(), "option2": "Blair"},
+            {**self._make_doc(), "sentence": "Alex thanked Jordan because _ helped."},
+            {**self._make_doc(), "sentence": "Riley called Casey because _ arrived."},
+        ]
+        monkeypatch.setattr(task, "_load_fewshot_dataset", lambda: docs)
+
+        examples = task.fewshot_examples(5, random.Random(0))
+
+        assert len(examples) == 5
+        assert all(example in docs for example in examples)
+
+    def test_fewshot_context_includes_complete_examples(self):
+        task = WinoGrandeTask(num_fewshot=1)
+        fewshot_doc = self._make_doc()
+        eval_doc = {
+            "sentence": "Alex thanked Jordan because _ helped.",
+            "option1": "Alex",
+            "option2": "Jordan",
+            "answer": "2",
+        }
+        task._get_fewshot_examples = lambda: [fewshot_doc]
+
+        ctx = task.fewshot_context(eval_doc)
+
+        assert "Sarah was nicer than Emma because Sarah was more patient.\n" in ctx
+        assert ctx.endswith("Alex thanked Jordan because ")
+
+    def test_load_fewshot_dataset_uses_local_size_parquet(self, monkeypatch, tmp_path):
+        import datasets
+
+        data_dir = tmp_path / "winogrande"
+        xl_dir = data_dir / "winogrande_xl"
+        small_dir = data_dir / "winogrande_s"
+        xl_dir.mkdir(parents=True)
+        small_dir.mkdir()
+        train_path = xl_dir / "train-00000-of-00001.parquet"
+        other_train_path = small_dir / "train-00000-of-00001.parquet"
+        train_path.write_bytes(b"")
+        other_train_path.write_bytes(b"")
+        load_calls = []
+
+        def fake_load_dataset(*args, **kwargs):
+            load_calls.append((args, kwargs))
+            return ["ok"]
+
+        monkeypatch.setattr(datasets, "load_dataset", fake_load_dataset)
+        monkeypatch.setattr(WinoGrandeTask, "DATASET_PATH", str(data_dir))
+
+        assert WinoGrandeTask()._load_fewshot_dataset() == ["ok"]
+        assert load_calls == [
+            (
+                ("parquet",),
+                {
+                    "data_files": {"train": [str(train_path)]},
+                    "split": "train",
+                },
+            )
+        ]
 
     def test_process_results_correct(self):
         task = WinoGrandeTask()

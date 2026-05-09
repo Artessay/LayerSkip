@@ -231,6 +231,7 @@ from evaluation.tasks import get_task
 
 mmlu = get_task("mmlu", num_fewshot=5, max_samples=100)
 hellaswag = get_task("hellaswag", num_fewshot=0)
+winogrande = get_task("winogrande", num_fewshot=5)
 gsm8k = get_task("gsm8k", num_fewshot=8)
 ```
 
