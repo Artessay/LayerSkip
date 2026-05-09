@@ -56,6 +56,16 @@ class _MockChatBatchEncodingTokenizer(_MockChatTokenizer):
         }
 
 
+class _MockTokenizerWithTerminators(_MockTokenizer):
+    unk_token_id = None
+
+    def convert_tokens_to_ids(self, token):
+        return {
+            "<|eot_id|>": 128009,
+            "<|end_of_text|>": 128001,
+        }.get(token)
+
+
 class _MockModel:
     def __init__(self):
         self.config = SimpleNamespace(num_hidden_layers=32)
@@ -81,6 +91,29 @@ def test_init_clears_model_generation_max_length(monkeypatch):
     HFModel("mock-model", device="cpu")
 
     assert mock_model.generation_config.max_length is None
+
+
+def test_eos_token_ids_preserve_model_generation_config(monkeypatch):
+    mock_tokenizer = _MockTokenizerWithTerminators()
+    mock_tokenizer.eos_token_id = 128009
+    mock_model = _MockModel()
+    mock_model.config.eos_token_id = 128009
+    mock_model.generation_config.eos_token_id = [128001, 128009]
+
+    fake_transformers = SimpleNamespace(
+        AutoTokenizer=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: mock_tokenizer,
+        ),
+        AutoModelForCausalLM=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: mock_model,
+        ),
+    )
+    monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+    model = HFModel("mock-model", device="cpu")
+
+    assert model._eos_token_id_list() == [128001, 128009]
+    assert model._generation_eos_token_id() == [128001, 128009]
 
 
 def test_tokenizer_chat_template_used_for_prompt_encoding(monkeypatch):

@@ -315,7 +315,22 @@ class TestGSM8KTask:
         prompt, gen_kwargs = requests[0]
         assert isinstance(gen_kwargs, dict)
         assert "max_new_tokens" in gen_kwargs
-        assert "\nSolve the following math problem step by step." in gen_kwargs["stop_sequences"]
+        assert gen_kwargs["stop_sequences"] == ["\n\nQuestion:", "\nQuestion:"]
+
+    def test_fewshot_context_includes_cot_instruction_once(self):
+        task = GSM8KTask(num_fewshot=1)
+        fewshot_doc = self._make_doc()
+        eval_doc = {
+            "question": "If pears cost $4 each and you buy 2, how much do you spend?",
+            "answer": "2 pears × $4 = $8\n#### 8",
+        }
+        task._get_fewshot_examples = lambda: [fewshot_doc]
+
+        ctx = task.fewshot_context(eval_doc)
+
+        assert ctx.count(task._COT_PREAMBLE) == 1
+        assert ctx.startswith(task._COT_INSTRUCTION)
+        assert "\n\nQuestion:" in ctx
 
     def test_construct_requests_without_cot_uses_question_stops(self):
         task = GSM8KTask(chain_of_thought=False)

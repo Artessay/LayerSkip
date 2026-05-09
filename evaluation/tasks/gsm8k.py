@@ -121,18 +121,37 @@ class GSM8KTask(BaseTask):
         return examples[:k]
 
     def doc_to_text(self, doc: Dict[str, Any]) -> str:
-        prefix = self._COT_INSTRUCTION if self.chain_of_thought else ""
+        return self._format_question(doc, include_instruction=True)
+
+    def _format_question(
+        self,
+        doc: Dict[str, Any],
+        include_instruction: bool,
+    ) -> str:
+        prefix = self._COT_INSTRUCTION if include_instruction and self.chain_of_thought else ""
         return f"{prefix}Question: {doc['question']}\nAnswer:"
 
     def doc_to_target(self, doc: Dict[str, Any]) -> str:
         return " " + doc["answer"]
 
+    def fewshot_context(self, doc: Dict[str, Any]) -> str:
+        examples = self._get_fewshot_examples()
+        prompt_parts = []
+        if self.chain_of_thought:
+            prompt_parts.append(self._COT_INSTRUCTION)
+
+        for ex in examples:
+            prompt_parts.append(self._format_question(ex, include_instruction=False))
+            prompt_parts.append(self.doc_to_target(ex))
+            prompt_parts.append("\n\n")
+
+        prompt_parts.append(self._format_question(doc, include_instruction=False))
+        return "".join(prompt_parts)
+
     def construct_requests(
         self, doc: Dict[str, Any], ctx: str
     ) -> List[tuple]:
         stop_sequences = ["\n\nQuestion:", "\nQuestion:"]
-        if self.chain_of_thought:
-            stop_sequences.append(f"\n{self._COT_PREAMBLE}")
 
         return [
             (

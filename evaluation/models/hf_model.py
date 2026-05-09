@@ -189,6 +189,63 @@ class HFModel(BaseLM):
             "attention_mask": torch.ones_like(input_ids, device=self._device),
         }
 
+    @staticmethod
+    def _append_token_ids(token_ids: List[int], value) -> None:
+        """Append one or more token ids while preserving order and uniqueness."""
+        if value is None:
+            return
+        if isinstance(value, torch.Tensor):
+            value = value.tolist()
+        if isinstance(value, int):
+            values = [value]
+        else:
+            try:
+                values = list(value)
+            except TypeError:
+                values = [value]
+
+        for token_id in values:
+            if token_id is None:
+                continue
+            token_id = int(token_id)
+            if token_id not in token_ids:
+                token_ids.append(token_id)
+
+    def _eos_token_id_list(self) -> List[int]:
+        """Return all known EOS / chat-turn terminator token ids for the model."""
+        token_ids: List[int] = []
+
+        generation_config = getattr(self.model, "generation_config", None)
+        if generation_config is not None:
+            self._append_token_ids(
+                token_ids,
+                getattr(generation_config, "eos_token_id", None),
+            )
+
+        model_config = getattr(self.model, "config", None)
+        if model_config is not None:
+            self._append_token_ids(token_ids, getattr(model_config, "eos_token_id", None))
+
+        self._append_token_ids(token_ids, getattr(self.tokenizer, "eos_token_id", None))
+
+        convert = getattr(self.tokenizer, "convert_tokens_to_ids", None)
+        if callable(convert):
+            unk_token_id = getattr(self.tokenizer, "unk_token_id", None)
+            for token in ("<|eot_id|>", "<|end_of_text|>"):
+                token_id = convert(token)
+                if token_id is not None and token_id != unk_token_id:
+                    self._append_token_ids(token_ids, token_id)
+
+        return token_ids
+
+    def _generation_eos_token_id(self):
+        eos_token_ids = self._eos_token_id_list()
+        if not eos_token_ids:
+            return None
+        if len(eos_token_ids) == 1:
+            return eos_token_ids[0]
+        return eos_token_ids
+
     # ------------------------------------------------------------------ #
     # BaseLM interface                                                     #
     # ------------------------------------------------------------------ #
@@ -367,7 +424,7 @@ class HFModel(BaseLM):
                 top_p=top_p if do_sample else 1.0,
                 do_sample=do_sample,
                 pad_token_id=self.tokenizer.pad_token_id,
-                eos_token_id=self.tokenizer.eos_token_id,
+                eos_token_id=self._generation_eos_token_id(),
             )
             with torch.no_grad():
                 output_ids = self.model.generate(
@@ -408,11 +465,7 @@ class HFModel(BaseLM):
         cur_input_ids = input_ids
         cur_attention_mask = attention_mask
 
-        eos_id = self.tokenizer.eos_token_id
-        stop_ids = [
-            self.tokenizer.encode(s, add_special_tokens=False)
-            for s in stop_sequences
-        ]
+        eos_token_ids = set(self._eos_token_id_list())
 
         for _ in range(max_new_tokens):
             with torch.no_grad():
@@ -447,7 +500,7 @@ class HFModel(BaseLM):
             token_id = next_token.item()
             generated.append(token_id)
 
-            if token_id == eos_id:
+            if token_id in eos_token_ids:
                 break
 
             # Check stop sequences
