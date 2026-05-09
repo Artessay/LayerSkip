@@ -10,7 +10,7 @@ All positions in a batch use the same exit layer, which makes this the simplest
 and most predictable of the three strategies.
 """
 
-from typing import Optional, Tuple
+from typing import Tuple
 
 import torch
 

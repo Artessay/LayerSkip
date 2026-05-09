@@ -15,7 +15,7 @@ This is a training-free approximation of the learned-gate approach described in
 the original GateSkip paper, suitable for zero-shot comparison studies.
 """
 
-from typing import Optional, Tuple
+from typing import Tuple
 
 import torch
 
@@ -71,7 +71,7 @@ class GateSkipStrategy(BaseLayerSkipStrategy):
 
     def _compute_gate_values(
         self, hidden_states: Tuple[torch.Tensor, ...], num_layers: int
-    ) -> list:
+    ) -> list[float]:
         """
         Compute per-layer gate values (relative hidden-state change).
 
