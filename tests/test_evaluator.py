@@ -260,7 +260,7 @@ class TestEvaluatorRun:
             with open(result_file) as f:
                 saved = json.load(f)
 
-            assert saved["model"] == "org/mock-model"
+            assert saved["model"] == "mock-model"
             assert saved["strategy"] == "layerskip"
             assert saved["task"] == task_name
             assert saved["results"] == result["results"][task_name]

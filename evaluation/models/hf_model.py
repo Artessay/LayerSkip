@@ -15,6 +15,7 @@ modifying model weights or retraining.
 from __future__ import annotations
 
 import logging
+from collections.abc import Mapping
 from typing import Dict, List, Optional, Tuple, Union
 
 import torch
@@ -75,6 +76,7 @@ class HFModel(BaseLM):
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         self.tokenizer.padding_side = "left"
+        self._use_chat_template = self._should_use_chat_template()
 
         logger.info("Loading model %s to %s …", model_name, device)
         torch_dtype = (
@@ -99,6 +101,8 @@ class HFModel(BaseLM):
             self._num_layers,
             strategy.name if strategy else "none",
         )
+        if self._use_chat_template:
+            logger.info("Using tokenizer chat template for prompts.")
 
     # ------------------------------------------------------------------ #
     # Internal helpers                                                     #
@@ -139,6 +143,51 @@ class HFModel(BaseLM):
         if layer_norm is not None:
             hidden = layer_norm(hidden)
         return self.model.lm_head(hidden)
+
+    def _should_use_chat_template(self) -> bool:
+        """Return whether prompts should be wrapped with the tokenizer chat template."""
+        has_template = bool(getattr(self.tokenizer, "chat_template", None))
+        has_apply = callable(getattr(self.tokenizer, "apply_chat_template", None))
+        return has_template and has_apply
+
+    @staticmethod
+    def _flatten_token_ids(token_ids) -> List[int]:
+        """Normalise tokenizer outputs to a flat Python token-id list."""
+        if isinstance(token_ids, Mapping):
+            token_ids = token_ids["input_ids"]
+        if isinstance(token_ids, torch.Tensor):
+            if token_ids.ndim == 2:
+                return token_ids[0].tolist()
+            return token_ids.tolist()
+        if token_ids and isinstance(token_ids[0], list):
+            return list(token_ids[0])
+        return list(token_ids)
+
+    def _encode_prompt_ids(self, prompt: str) -> List[int]:
+        """Encode a task prompt, applying the tokenizer chat template when available."""
+        if self._use_chat_template:
+            token_ids = self.tokenizer.apply_chat_template(
+                [{"role": "user", "content": prompt}],
+                tokenize=True,
+                add_generation_prompt=True,
+            )
+            if isinstance(token_ids, str):
+                return self.tokenizer.encode(token_ids, add_special_tokens=False)
+            return self._flatten_token_ids(token_ids)
+
+        return self.tokenizer.encode(prompt, add_special_tokens=True)
+
+    def _prepare_prompt_inputs(self, prompt: str) -> Dict[str, torch.Tensor]:
+        """Build model inputs for a generation prompt."""
+        input_ids = torch.tensor(
+            [self._encode_prompt_ids(prompt)],
+            dtype=torch.long,
+            device=self._device,
+        )
+        return {
+            "input_ids": input_ids,
+            "attention_mask": torch.ones_like(input_ids, device=self._device),
+        }
 
     # ------------------------------------------------------------------ #
     # BaseLM interface                                                     #
@@ -183,9 +232,7 @@ class HFModel(BaseLM):
         # Tokenise context and continuation separately to know the boundary
         contexts, continuations = zip(*batch)
 
-        ctx_encodings = [
-            self.tokenizer.encode(c, add_special_tokens=True) for c in contexts
-        ]
+        ctx_encodings = [self._encode_prompt_ids(c) for c in contexts]
         cont_encodings = [
             self.tokenizer.encode(c, add_special_tokens=False) for c in continuations
         ]
@@ -295,10 +342,7 @@ class HFModel(BaseLM):
         do_sample = gen_kwargs.get("do_sample", False)
         stop_sequences = gen_kwargs.get("stop_sequences", [])
 
-        inputs = self.tokenizer(
-            prompt,
-            return_tensors="pt",
-        ).to(self._device)
+        inputs = self._prepare_prompt_inputs(prompt)
 
         input_len = inputs["input_ids"].shape[1]
 
