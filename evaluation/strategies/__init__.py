@@ -34,7 +34,8 @@ def get_strategy(name: str, **kwargs) -> "BaseLayerSkipStrategy | None":
     Instantiate a strategy by name with optional overrides.
 
     Args:
-        name: One of ``"none"``, ``"layerskip"``, ``"caml"``, ``"gateskip"``.
+        name: One of ``"none"``, ``"layerskip"``, ``"caml"``, ``"gateskip"``,
+            ``"calibratedskip"``, or ``"manualskip"``.
         **kwargs: Keyword arguments forwarded to the strategy constructor,
             overriding the defaults.
 

@@ -44,8 +44,8 @@ python eval.py \\
     --manualskip_layers 2 4 8 \\
     --tasks mmlu
 
-# CalibratedSkip: compute layer metrics on the task calibration split and save
-# them for manual inspection:
+# CalibratedSkip: compute layer metrics on the task calibration split, save
+# them for manual inspection, and exit without task evaluation:
 python eval.py \\
     --model meta-llama/Llama-3.2-1B-Instruct \\
     --strategy calibratedskip \\

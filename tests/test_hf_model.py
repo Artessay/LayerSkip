@@ -4,6 +4,7 @@ import sys
 from types import SimpleNamespace
 
 from evaluation.models.hf_model import HFModel, calculate_shapley_value
+from evaluation.strategies.calibratedskip import CalibratedSkipStrategy
 from evaluation.strategies.manualskip import ManualSkipStrategy
 
 
@@ -133,7 +134,32 @@ class _MockLayerBypassModel(_MockModel):
             )[0]
             if output_hidden_states:
                 states.append(hidden.clone())
-        return SimpleNamespace(hidden_states=tuple(states), logits=hidden)
+        return SimpleNamespace(
+            hidden_states=tuple(states) if states is not None else None,
+            logits=hidden,
+        )
+
+
+class _MockLayerBypassGenerativeModel(_MockLayerBypassModel):
+    def __init__(self):
+        super().__init__()
+        self.generate_config = None
+        self.generate_kwargs = None
+
+    def generate(self, **kwargs):
+        import torch
+
+        self.generate_kwargs = kwargs
+        self.generate_config = kwargs["generation_config"]
+        input_ids = kwargs["input_ids"]
+        self(
+            input_ids=input_ids,
+            attention_mask=kwargs.get("attention_mask"),
+            output_hidden_states=False,
+            use_cache=getattr(self.generate_config, "use_cache", False),
+        )
+        generated = torch.tensor([[301]], dtype=input_ids.dtype, device=input_ids.device)
+        return torch.cat([input_ids, generated], dim=1)
 
 
 class _ToyCalibrationLayer:
@@ -328,6 +354,89 @@ def test_generate_single_preserves_leading_whitespace(monkeypatch):
     model = HFModel("mock-model", device="cpu")
 
     assert model._generate_single("prompt", {"max_new_tokens": 8}) == "    return 1"
+
+
+def test_empty_calibratedskip_uses_full_model_generate(monkeypatch):
+    mock_tokenizer = _MockTokenizer()
+    mock_tokenizer.decoded_text = "full model output"
+
+    fake_transformers = SimpleNamespace(
+        AutoTokenizer=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: mock_tokenizer,
+        ),
+        AutoModelForCausalLM=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: _MockGenerativeModel(),
+        ),
+        GenerationConfig=lambda **kwargs: SimpleNamespace(**kwargs),
+    )
+    monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+    model = HFModel(
+        "mock-model",
+        strategy=CalibratedSkipStrategy(skip_layers=[]),
+        device="cpu",
+    )
+
+    assert model._use_strategy is False
+    assert model._generate_single("prompt", {"max_new_tokens": 8}) == "full model output"
+
+
+def test_full_layer_strategy_logits_reuse_model_logits(monkeypatch):
+    import torch
+
+    mock_model = _MockLayerBypassModel()
+    fake_transformers = SimpleNamespace(
+        AutoTokenizer=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: _MockTokenizer(),
+        ),
+        AutoModelForCausalLM=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: mock_model,
+        ),
+    )
+    monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+    model = HFModel(
+        "mock-model",
+        strategy=ManualSkipStrategy(skip_layers=[2]),
+        device="cpu",
+    )
+    input_ids = torch.tensor([[1, 2]], dtype=torch.long)
+    outputs = model._forward_model(
+        input_ids=input_ids,
+        attention_mask=torch.ones_like(input_ids),
+        output_hidden_states=True,
+        use_cache=False,
+    )
+
+    assert model._strategy_logits_from_outputs(outputs) is outputs.logits
+
+
+def test_manualskip_uses_native_generate_with_layer_bypass(monkeypatch):
+    mock_tokenizer = _MockTokenizer()
+    mock_tokenizer.decoded_text = "manualskip output"
+    mock_model = _MockLayerBypassGenerativeModel()
+    fake_transformers = SimpleNamespace(
+        AutoTokenizer=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: mock_tokenizer,
+        ),
+        AutoModelForCausalLM=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: mock_model,
+        ),
+        GenerationConfig=lambda **kwargs: SimpleNamespace(**kwargs),
+    )
+    monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+    model = HFModel(
+        "mock-model",
+        strategy=ManualSkipStrategy(skip_layers=[2]),
+        device="cpu",
+    )
+
+    assert model._use_strategy is False
+    assert model._generate_single("prompt", {"max_new_tokens": 8}) == "manualskip output"
+    assert [layer.calls for layer in mock_model.layers] == [1, 0, 1]
+    assert mock_model.generate_config.use_cache is False
+    assert mock_model.generate_kwargs["use_cache"] is False
 
 
 def test_manualskip_bypasses_configured_transformer_layers(monkeypatch):

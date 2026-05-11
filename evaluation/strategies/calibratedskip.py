@@ -1,4 +1,4 @@
-"""CalibratedSkip strategy - save calibration metrics before evaluation."""
+"""CalibratedSkip metadata strategy for calibration-only layer scoring."""
 
 from typing import Iterable, Optional, Tuple
 
@@ -54,6 +54,12 @@ class CalibratedSkipStrategy(BaseLayerSkipStrategy):
                 f"skip_layers must be within [1, {num_layers}], got {invalid_layers}"
             )
         return tuple(layer - 1 for layer in self.skip_layers)
+
+    def is_noop(self, num_layers: int) -> bool:
+        return not self.get_skipped_layer_indices(num_layers)
+
+    def uses_full_model_logits(self, num_layers: int) -> bool:
+        return True
 
     def select_exit_layer(
         self,

@@ -13,9 +13,8 @@ from pathlib import Path
 import time
 from typing import Any, Dict, List, Optional, Union
 
-from evaluation.calibration import calibrate_task_layers
+from evaluation.calibration import DEFAULT_CALIBRATION_METRICS, calibrate_task_layers
 from evaluation.models.hf_model import HFModel
-from evaluation.strategies.calibratedskip import CalibratedSkipStrategy
 from evaluation.strategies import get_strategy
 from evaluation.tasks import get_task
 from evaluation.tasks.base_task import BaseTask
@@ -49,7 +48,9 @@ class Evaluator:
     Args:
         model_name: HuggingFace model identifier or local path.
         strategy_name: Name of the layer-skipping strategy (``"none"``,
-            ``"layerskip"``, ``"caml"``, ``"gateskip"``).
+            ``"layerskip"``, ``"caml"``, ``"gateskip"``,
+            ``"manualskip"``), or ``"calibratedskip"`` for calibration-only
+            layer scoring.
         strategy_kwargs: Extra keyword arguments forwarded to the strategy
             constructor, overriding defaults.
         tasks: List of task names to evaluate.  Each name must be registered
@@ -149,23 +150,37 @@ class Evaluator:
         )
         model = self._build_model()
 
+        is_calibration_only = self.strategy_name == "calibratedskip"
         strategy_config: Dict[str, Any] = {}
-        if model.strategy is not None:
+        if is_calibration_only:
+            strategy_config = {
+                "calibration_only": True,
+                "calibration_metrics": list(
+                    self.strategy_kwargs.get(
+                        "calibration_metrics",
+                        DEFAULT_CALIBRATION_METRICS,
+                    )
+                ),
+                "calibration_max_samples": self.strategy_kwargs.get(
+                    "calibration_max_samples"
+                ),
+            }
+        elif model.strategy is not None:
             strategy_config = model.strategy.config
 
         results: Dict[str, Any] = {}
         result_files: Dict[str, str] = {}
         sample_files: Dict[str, str] = {}
         calibration_files: Dict[str, str] = {}
-        per_task_strategy_config: Dict[str, Dict[str, Any]] = {}
         t0 = time.time()
 
         for task_name in self.task_names:
-            logger.info("Evaluating task '%s' …", task_name)
+            action = "Calibrating" if is_calibration_only else "Evaluating"
+            logger.info("%s task '%s' …", action, task_name)
             task = self._build_task(task_name)
             t_task = time.time()
 
-            if self.strategy_name == "calibratedskip":
+            if is_calibration_only:
                 calibration = calibrate_task_layers(
                     model=model,
                     task=task,
@@ -181,18 +196,14 @@ class Evaluator:
                     results_dir=self.results_dir,
                 )
                 calibration_files[task_name] = calibration["metrics_file"]
-                strategy = CalibratedSkipStrategy(
-                    skip_layers=[],
-                    calibration_metrics=self.strategy_kwargs.get(
-                        "calibration_metrics",
-                        ["activation_ratio", "gradient_trace"],
-                    ),
-                    metrics_path=calibration["metrics_file"],
-                    calibration_split=calibration["calibration_split"],
+                elapsed = time.time() - t_task
+                logger.info(
+                    "Task '%s' calibration done in %.1f s: %s",
+                    task_name,
+                    elapsed,
+                    calibration["metrics_file"],
                 )
-                model.set_strategy(strategy)
-                strategy_config = strategy.config
-                per_task_strategy_config[task_name] = strategy_config
+                continue
 
             evaluation_config = build_task_evaluation_config(
                 model_name=self.model_name,
@@ -233,13 +244,6 @@ class Evaluator:
 
         total_elapsed = time.time() - t0
 
-        if self.strategy_name == "calibratedskip":
-            strategy_config = (
-                next(iter(per_task_strategy_config.values()))
-                if len(per_task_strategy_config) == 1
-                else per_task_strategy_config
-            )
-
         output = {
             "model": self.saved_model_name,
             "strategy": self.strategy_name,
@@ -273,6 +277,14 @@ class Evaluator:
             for metric, value in metrics.items():
                 pct = f"{value * 100:.2f}%" if isinstance(value, float) else str(value)
                 print(f"    {metric:20s}: {pct}")
+
+        calibration_files = eval_output.get("calibration_files", {})
+        if calibration_files:
+            print("\n  Calibration files:")
+            for task_name, path in calibration_files.items():
+                print(f"    {task_name:20s}: {path}")
+            if not results:
+                print("\n  No task evaluation was run.")
 
         elapsed = eval_output.get("elapsed_seconds", 0)
         print(f"\nTotal elapsed: {elapsed:.1f} s")

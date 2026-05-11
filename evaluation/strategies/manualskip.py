@@ -52,6 +52,9 @@ class ManualSkipStrategy(BaseLayerSkipStrategy):
             )
         return tuple(layer - 1 for layer in self.skip_layers)
 
+    def uses_full_model_logits(self, num_layers: int) -> bool:
+        return True
+
     def select_exit_layer(
         self,
         hidden_states: Tuple[torch.Tensor, ...],

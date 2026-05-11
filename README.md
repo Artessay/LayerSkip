@@ -140,8 +140,11 @@ python eval.py \
   --tasks mmlu hellaswag
 ```
 
-### CalibratedSkip from layer importance metrics
+### Calibrate layer importance metrics
 
+Use `calibratedskip` when you only want to score layer importance. This mode
+writes calibration metrics and exits; it does not run task evaluation and does
+not choose any layers to skip automatically.
 
 ```bash
 python eval.py \
@@ -199,7 +202,7 @@ python eval.py --help
 | `--gateskip_gate_threshold` | `0.01` | Relative-change threshold (GateSkip) |
 | `--gateskip_skip_budget` | `0.3` | Max fraction of layers to skip (GateSkip) |
 | `--gateskip_min_layers` | `4` | Minimum layers before skipping (GateSkip) |
-| `--calibratedskip_metrics` | `activation_ratio gradient_trace` | Metrics to compute and save for every layer: `activation_ratio`, `gradient_value`, `gradient_trace`, `shapley_value` |
+| `--calibratedskip_metrics` | `activation_ratio gradient_trace` | Calibration-only metrics to compute and save for every layer: `activation_ratio`, `gradient_value`, `gradient_trace`, `shapley_value` |
 | `--calibration_max_samples` | all | Cap calibration examples per task |
 | `--manualskip_layers` | required for `manualskip` | 1-based layer numbers to bypass, e.g. `2 4 8` or `2,4,8` |
 
@@ -267,7 +270,7 @@ strategy = get_strategy("caml", confidence_threshold=0.9)
 # GateSkip: skip up to 30% of low-change layers
 strategy = get_strategy("gateskip", skip_budget=0.3)
 
-# CalibratedSkip: carry metadata for a saved calibration run
+# CalibratedSkip: metadata holder for saved calibration scores
 strategy = get_strategy("calibratedskip")
 
 # ManualSkip: bypass layers 2, 4, and 8
@@ -305,7 +308,7 @@ LayerSkip/
 │   │   ├── layerskip.py       # Static early-exit strategy
 │   │   ├── caml.py            # Confidence-adaptive strategy
 │   │   ├── gateskip.py        # Gate/change-based strategy
-│   │   ├── calibratedskip.py  # Calibration-selected layer bypass strategy
+│   │   ├── calibratedskip.py  # Calibration metadata strategy
 │   │   └── manualskip.py      # User-selected layer bypass strategy
 │   ├── tasks/
 │   │   ├── base_task.py       # Abstract task base class
@@ -360,10 +363,10 @@ high-importance layer as the exit point.
 
 ### CalibratedSkip
 
-Before evaluating each task, CalibratedSkip builds teacher-forcing calibration
-requests from labeled examples. It prefers the task validation split, falls back
-to training when validation is unavailable, and finally uses the test/evaluation
-split when neither exists. It supports four layer-level metrics:
+CalibratedSkip builds teacher-forcing calibration requests from labeled
+examples. It prefers the task validation split, falls back to training when
+validation is unavailable, and finally uses the test/evaluation split when
+neither exists. It supports four layer-level metrics:
 
 - `activation_ratio`: fraction of positive values in each layer's output hidden
   states over non-padding tokens.
@@ -374,16 +377,18 @@ split when neither exists. It supports four layer-level metrics:
 - `shapley_value`: layer-level sum of row-wise Shapley values over each 2D
   parameter, using a Fisher-information approximation to the Hessian.
 
-CalibratedSkip does not automatically bypass any layers. It only writes the
-per-layer metrics so you can inspect them offline. After choosing layers from
-the saved metrics, run ManualSkip with those 1-based layer numbers.
+CalibratedSkip does not run benchmark evaluation and does not automatically
+bypass any layers. It only writes the per-layer metrics so you can inspect them
+offline. After choosing layers from the saved metrics, run ManualSkip with those
+1-based layer numbers.
 
 ### ManualSkip
 
 Bypasses the exact 1-based transformer layer numbers provided by the user. For
 each skipped layer, the model does not execute that transformer block; the
 previous layer's hidden state is passed directly to the following layer. The
-model still runs to the final layer after applying those bypasses.
+model still runs to the final layer after applying those bypasses, and uses the
+same final-logit and generation path as the full-model baseline.
 
 ---
 

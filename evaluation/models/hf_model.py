@@ -115,8 +115,8 @@ class HFModel(BaseLM):
             self.model.generation_config.max_length = None
 
         self._num_layers: int = self.model.config.num_hidden_layers
-        self._use_strategy: bool = strategy is not None
         self._bypass_layer_indices = self._get_strategy_bypass_layer_indices()
+        self._use_strategy = self._should_use_strategy()
         self._transformer_layers: Optional[Sequence[torch.nn.Module]] = None
         if self._bypass_layer_indices:
             self._transformer_layers = self._resolve_transformer_layers()
@@ -141,6 +141,13 @@ class HFModel(BaseLM):
             return ()
         return tuple(self.strategy.get_skipped_layer_indices(self._num_layers))
 
+    def _should_use_strategy(self) -> bool:
+        if self.strategy is None:
+            return False
+        if self.strategy.is_noop(self._num_layers):
+            return False
+        return not self.strategy.uses_full_model_logits(self._num_layers)
+
     @property
     def num_layers(self) -> int:
         return self._num_layers
@@ -148,8 +155,8 @@ class HFModel(BaseLM):
     def set_strategy(self, strategy: Optional[BaseLayerSkipStrategy]) -> None:
         """Update the active strategy and refresh layer-bypass bookkeeping."""
         self.strategy = strategy
-        self._use_strategy = strategy is not None
         self._bypass_layer_indices = self._get_strategy_bypass_layer_indices()
+        self._use_strategy = self._should_use_strategy()
         self._transformer_layers = None
         if self._bypass_layer_indices:
             self._transformer_layers = self._resolve_transformer_layers()
@@ -489,6 +496,22 @@ class HFModel(BaseLM):
             layer_norm=layer_norm,
         )
 
+    def _strategy_logits_from_outputs(self, outputs) -> torch.Tensor:
+        if self.strategy is None:
+            return outputs.logits
+
+        layer_norm = self._get_layer_norm()
+        lm_head = self.model.lm_head
+        exit_layer = self.strategy.select_exit_layer(
+            hidden_states=outputs.hidden_states,
+            num_layers=self._num_layers,
+            lm_head=lm_head,
+            layer_norm=layer_norm,
+        )
+        if exit_layer == self._num_layers:
+            return outputs.logits
+        return self._logits_from_hidden(outputs.hidden_states[exit_layer])
+
     def _logits_from_hidden(self, hidden: torch.Tensor) -> torch.Tensor:
         """Apply layer norm + LM head to a hidden state tensor."""
         layer_norm = self._get_layer_norm()
@@ -681,8 +704,7 @@ class HFModel(BaseLM):
             )
 
             if self._use_strategy:
-                hidden = self._apply_strategy_to_hidden_states(outputs.hidden_states)
-                logits = self._logits_from_hidden(hidden)
+                logits = self._strategy_logits_from_outputs(outputs)
             else:
                 logits = outputs.logits
 
@@ -768,22 +790,14 @@ class HFModel(BaseLM):
                 stop_sequences=stop_sequences,
             )
         else:
-            from transformers import GenerationConfig
-
-            gen_config = GenerationConfig(
+            generated_ids = self._generate_with_native_model(
+                inputs=inputs,
+                input_len=input_len,
                 max_new_tokens=max_new_tokens,
-                temperature=temperature if do_sample else 1.0,
-                top_p=top_p if do_sample else 1.0,
+                temperature=temperature,
+                top_p=top_p,
                 do_sample=do_sample,
-                pad_token_id=self.tokenizer.pad_token_id,
-                eos_token_id=self._generation_eos_token_id(),
             )
-            with torch.no_grad():
-                output_ids = self.model.generate(
-                    **inputs,
-                    generation_config=gen_config,
-                )
-            generated_ids = output_ids[0, input_len:]
 
         text = self.tokenizer.decode(
             generated_ids,
@@ -797,6 +811,38 @@ class HFModel(BaseLM):
                 text = text[: text.index(stop)]
 
         return text.rstrip()
+
+    def _generate_with_native_model(
+        self,
+        inputs: Dict[str, torch.Tensor],
+        input_len: int,
+        max_new_tokens: int,
+        temperature: float,
+        top_p: float,
+        do_sample: bool,
+    ) -> torch.Tensor:
+        from transformers import GenerationConfig
+
+        config_kwargs = {
+            "max_new_tokens": max_new_tokens,
+            "temperature": temperature if do_sample else 1.0,
+            "top_p": top_p if do_sample else 1.0,
+            "do_sample": do_sample,
+            "pad_token_id": self.tokenizer.pad_token_id,
+            "eos_token_id": self._generation_eos_token_id(),
+        }
+        if self._bypass_layer_indices:
+            config_kwargs["use_cache"] = False
+
+        gen_config = GenerationConfig(**config_kwargs)
+        generate_kwargs = {**inputs, "generation_config": gen_config}
+        if self._bypass_layer_indices:
+            generate_kwargs["use_cache"] = False
+
+        with torch.no_grad():
+            with self._bypass_transformer_layers():
+                output_ids = self.model.generate(**generate_kwargs)
+        return output_ids[0, input_len:]
 
     def _generate_with_strategy(
         self,
@@ -838,8 +884,7 @@ class HFModel(BaseLM):
                         use_cache=False,
                     )
 
-            hidden = self._apply_strategy_to_hidden_states(outputs.hidden_states)
-            logits = self._logits_from_hidden(hidden)
+            logits = self._strategy_logits_from_outputs(outputs)
             next_logits = logits[:, -1, :]  # (1, vocab)
 
             if do_sample:

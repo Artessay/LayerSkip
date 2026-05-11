@@ -87,6 +87,21 @@ class TestEvaluatorPrint:
         assert "none" in captured.out
         assert "layerskip" in captured.out
 
+    def test_print_results_shows_calibration_files(self, capsys):
+        result = {
+            "model": "mock-model",
+            "strategy": "calibratedskip",
+            "strategy_config": {"calibration_only": True},
+            "results": {},
+            "calibration_files": {"mmlu": "results/mock/mmlu/calibration/abc.json"},
+            "elapsed_seconds": 1.0,
+        }
+        Evaluator.print_results(result)
+        captured = capsys.readouterr()
+        assert "Calibration files" in captured.out
+        assert "results/mock/mmlu/calibration/abc.json" in captured.out
+        assert "No task evaluation was run" in captured.out
+
 
 class TestEvaluatorInit:
 
@@ -296,7 +311,7 @@ class TestEvaluatorRun:
     @patch("evaluation.evaluator.calibrate_task_layers")
     @patch("evaluation.evaluator.HFModel")
     @patch("evaluation.evaluator.get_task")
-    def test_run_calibratedskip_sets_task_strategy(
+    def test_run_calibratedskip_only_saves_calibration(
         self,
         mock_get_task,
         MockHFModel,
@@ -313,10 +328,6 @@ class TestEvaluatorRun:
         mock_model_instance = MagicMock()
         mock_model_instance.strategy = None
 
-        def set_strategy(strategy):
-            mock_model_instance.strategy = strategy
-
-        mock_model_instance.set_strategy.side_effect = set_strategy
         MockHFModel.return_value = mock_model_instance
         mock_calibrate_task_layers.return_value = {
             "metrics_file": str(tmp_path / "calibration.json"),
@@ -337,10 +348,17 @@ class TestEvaluatorRun:
         )
         result = ev.run()
 
-        from evaluation.strategies.calibratedskip import CalibratedSkipStrategy
-
-        assert isinstance(mock_model_instance.strategy, CalibratedSkipStrategy)
-        assert mock_model_instance.strategy.skip_layers == ()
+        mock_calibrate_task_layers.assert_called_once()
+        mock_task.evaluate.assert_not_called()
+        mock_model_instance.set_strategy.assert_not_called()
+        assert result["results"] == {}
+        assert result["result_files"] == {}
+        assert result["sample_files"] == {}
+        assert result["strategy_config"] == {
+            "calibration_only": True,
+            "calibration_metrics": ["activation_ratio"],
+            "calibration_max_samples": None,
+        }
         assert result["calibration_files"] == {
             "mmlu": str(tmp_path / "calibration.json")
         }

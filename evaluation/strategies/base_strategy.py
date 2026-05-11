@@ -77,5 +77,13 @@ class BaseLayerSkipStrategy(ABC):
         """
         return ()
 
+    def is_noop(self, num_layers: int) -> bool:
+        """Return whether this strategy leaves the full model path unchanged."""
+        return False
+
+    def uses_full_model_logits(self, num_layers: int) -> bool:
+        """Return whether the strategy should use the model's native final logits."""
+        return False
+
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(config={self.config})"
