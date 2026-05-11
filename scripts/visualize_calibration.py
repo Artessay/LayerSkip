@@ -2,7 +2,7 @@
 """Visualize calibration layer metrics across tasks.
 
 The script scans calibration JSON files written by the calibratedskip strategy,
-groups them by base model and calibration metric, writes one SVG line chart for
+groups them by base model and calibration metric, writes one line chart for
 each (model, metric) pair, and prints per-task layer rankings to the terminal.
 
 Examples
@@ -33,6 +33,8 @@ SUPPORTED_CALIBRATION_METRICS = (
     "gradient_trace",
     "shapley_value",
 )
+
+SHAPLEY_PLOT_MIN_LAYER = 5
 
 PALETTE = (
     "#2563eb",
@@ -86,7 +88,7 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         "--output-dir",
         type=Path,
         default=Path("results/calibration_plots"),
-        help="Directory where SVG plots will be written.",
+        help="Directory where plots will be written.",
     )
     parser.add_argument(
         "--files",
@@ -144,7 +146,8 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         "--formats",
         nargs="+",
         choices=("svg", "png"),
-        default=["svg", "png"],
+        default=["png"],
+        # default=["svg", "png"],
         help="Plot formats to save. Defaults to svg png.",
     )
     parser.add_argument(
@@ -293,6 +296,19 @@ def plot_value_description(normalize: str) -> str:
     return "min-max normalized values per task"
 
 
+def display_metric_name(metric: str) -> str:
+    if metric == "shapley_value":
+        return f"abs({metric})"
+    return metric
+
+
+def display_layer_values(run: CalibrationRun, metric: str) -> List[Tuple[int, float]]:
+    values = run.layer_values(metric)
+    if metric == "shapley_value":
+        return [(layer, abs(value)) for layer, value in values]
+    return values
+
+
 def load_matplotlib():
     try:
         import matplotlib
@@ -352,6 +368,12 @@ def x_ticks(min_layer: int, max_layer: int) -> List[int]:
     return sorted(ticks)
 
 
+def x_bounds(min_layer: int, max_layer: int) -> Tuple[float, float]:
+    span = max_layer - min_layer
+    padding = max(0.5, span * 0.03)
+    return min_layer - padding, max_layer + padding
+
+
 def line_label(run: CalibrationRun, include_run_id: bool) -> str:
     if include_run_id:
         return f"{run.task} [{run.path.stem}]"
@@ -367,7 +389,9 @@ def build_plot_series(
 ) -> List[Dict[str, object]]:
     series = []
     for index, run in enumerate(sorted(runs, key=lambda item: (item.task, str(item.path)))):
-        layer_values = run.layer_values(metric)
+        layer_values = display_layer_values(run, metric)
+        if metric == "shapley_value":
+            layer_values = [item for item in layer_values if item[0] >= SHAPLEY_PLOT_MIN_LAYER]
         if not layer_values:
             continue
         layers = [layer for layer, _ in layer_values]
@@ -430,7 +454,8 @@ def write_line_plots(
             label=label,
         )
 
-    ax.set_title(f"{model} - {metric}", loc="left", fontsize=15, fontweight="bold", pad=24)
+    metric_label = display_metric_name(metric)
+    ax.set_title(f"{model} - {metric_label}", loc="left", fontsize=15, fontweight="bold", pad=24)
     ax.text(
         0,
         1.01,
@@ -440,9 +465,9 @@ def write_line_plots(
         color="#6b7280",
     )
     ax.set_xlabel("Layer")
-    ylabel = metric if normalize == "none" else f"{metric} (min-max)"
+    ylabel = metric_label if normalize == "none" else f"{metric_label} (min-max)"
     ax.set_ylabel(ylabel)
-    ax.set_xlim(min_layer, max_layer)
+    ax.set_xlim(*x_bounds(min_layer, max_layer))
     ax.set_ylim(min_y, max_y)
     ax.set_xticks(x_ticks(min_layer, max_layer))
     ax.yaxis.set_major_formatter(FuncFormatter(lambda value, _: format_tick(value)))
@@ -471,14 +496,16 @@ def write_line_plots(
 
 
 def effective_rank_mode(metric: str, rank_mode: str) -> str:
+    if metric == "shapley_value":
+        return "abs"
     if rank_mode == "auto":
-        return "abs" if metric == "shapley_value" else "value"
+        return "value"
     return rank_mode
 
 
 def ranked_layers(run: CalibrationRun, metric: str, rank_mode: str) -> List[Tuple[int, float]]:
     mode = effective_rank_mode(metric, rank_mode)
-    values = run.layer_values(metric)
+    values = display_layer_values(run, metric)
     if mode == "abs":
         return sorted(values, key=lambda item: abs(item[1]), reverse=True)
     return sorted(values, key=lambda item: item[1], reverse=True)
@@ -496,7 +523,7 @@ def print_rankings(
     if rank_mode == "auto":
         print("Rank mode: auto (shapley_value uses abs(value); other metrics use value)")
     else:
-        print(f"Rank mode: {rank_mode}")
+        print(f"Rank mode: {rank_mode} (shapley_value uses abs(value))")
 
     for model in sorted(runs_by_model):
         print("\n" + "=" * 88)
