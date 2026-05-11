@@ -1,0 +1,55 @@
+{
+  "model": "Meta-Llama-3-8B-Instruct",
+  "strategy": "calibratedskip",
+  "task": "gsm8k",
+  "evaluation_config": {
+    "model": "Meta-Llama-3-8B-Instruct",
+    "strategy": {
+      "name": "calibratedskip",
+      "kwargs": {
+        "calibration_metrics": [
+          "activation_ratio",
+          "gradient_value",
+          "gradient_trace",
+          "shapley_value"
+        ],
+        "calibration_max_samples": null
+      },
+      "config": {
+        "skip_layers": [],
+        "calibration_metrics": [
+          "activation_ratio",
+          "gradient_value",
+          "gradient_trace",
+          "shapley_value"
+        ],
+        "metrics_path": "results/Meta-Llama-3-8B-Instruct/gsm8k/calibration/74c763667f0a.json",
+        "calibration_split": "train"
+      }
+    },
+    "task": {
+      "name": "gsm8k",
+      "version": 1,
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 8,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "auto",
+      "dtype": "auto",
+      "trust_remote_code": false
+    }
+  },
+  "results": {
+    "exact_match": 0.4382107657316149
+  },
+  "elapsed_seconds": 55890.33,
+  "samples_file": "results/Meta-Llama-3-8B-Instruct/gsm8k/calibratedskip/eb7a5a1749a4.jsonl"
+}

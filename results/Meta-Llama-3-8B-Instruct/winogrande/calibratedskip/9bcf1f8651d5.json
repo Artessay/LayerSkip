@@ -1,0 +1,55 @@
+{
+  "model": "Meta-Llama-3-8B-Instruct",
+  "strategy": "calibratedskip",
+  "task": "winogrande",
+  "evaluation_config": {
+    "model": "Meta-Llama-3-8B-Instruct",
+    "strategy": {
+      "name": "calibratedskip",
+      "kwargs": {
+        "calibration_metrics": [
+          "activation_ratio",
+          "gradient_value",
+          "gradient_trace",
+          "shapley_value"
+        ],
+        "calibration_max_samples": null
+      },
+      "config": {
+        "skip_layers": [],
+        "calibration_metrics": [
+          "activation_ratio",
+          "gradient_value",
+          "gradient_trace",
+          "shapley_value"
+        ],
+        "metrics_path": "results/Meta-Llama-3-8B-Instruct/winogrande/calibration/e7c3bd1e725f.json",
+        "calibration_split": "validation"
+      }
+    },
+    "task": {
+      "name": "winogrande",
+      "version": 1,
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 0,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "auto",
+      "dtype": "auto",
+      "trust_remote_code": false
+    }
+  },
+  "results": {
+    "accuracy": 0.632991318074191
+  },
+  "elapsed_seconds": 8095.06,
+  "samples_file": "results/Meta-Llama-3-8B-Instruct/winogrande/calibratedskip/9bcf1f8651d5.jsonl"
+}
