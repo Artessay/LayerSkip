@@ -107,6 +107,18 @@ class _AddOneLayer:
         return self.forward(*args, **kwargs)
 
 
+class _TensorAddOneLayer:
+    def __init__(self):
+        self.calls = 0
+
+    def forward(self, hidden_states, **kwargs) -> "torch.Tensor":
+        self.calls += 1
+        return hidden_states + 1
+
+    def __call__(self, *args, **kwargs):
+        return self.forward(*args, **kwargs)
+
+
 class _MockLayerBypassModel(_MockModel):
     def __init__(self):
         super().__init__()
@@ -141,6 +153,61 @@ class _MockLayerBypassModel(_MockModel):
 
 
 class _MockLayerBypassGenerativeModel(_MockLayerBypassModel):
+    def __init__(self):
+        super().__init__()
+        self.generate_config = None
+        self.generate_kwargs = None
+
+    def generate(self, **kwargs):
+        import torch
+
+        self.generate_kwargs = kwargs
+        self.generate_config = kwargs["generation_config"]
+        input_ids = kwargs["input_ids"]
+        self(
+            input_ids=input_ids,
+            attention_mask=kwargs.get("attention_mask"),
+            output_hidden_states=False,
+            use_cache=getattr(self.generate_config, "use_cache", False),
+        )
+        generated = torch.tensor([[301]], dtype=input_ids.dtype, device=input_ids.device)
+        return torch.cat([input_ids, generated], dim=1)
+
+
+class _MockTensorLayerBypassModel(_MockModel):
+    def __init__(self):
+        super().__init__()
+        self.config = SimpleNamespace(num_hidden_layers=3)
+        self.layers = [_TensorAddOneLayer(), _TensorAddOneLayer(), _TensorAddOneLayer()]
+        self.model = SimpleNamespace(layers=self.layers, norm=None)
+        self.lm_head = lambda hidden: hidden
+
+    def __call__(
+        self,
+        input_ids,
+        attention_mask=None,
+        output_hidden_states=False,
+        use_cache=False,
+        **kwargs,
+    ):
+        hidden = input_ids.float().unsqueeze(-1)
+        states = [hidden.clone()] if output_hidden_states else None
+        for layer in self.layers:
+            hidden = layer(
+                hidden,
+                attention_mask=attention_mask,
+                output_attentions=False,
+                use_cache=use_cache,
+            )
+            if output_hidden_states:
+                states.append(hidden.clone())
+        return SimpleNamespace(
+            hidden_states=tuple(states) if states is not None else None,
+            logits=hidden,
+        )
+
+
+class _MockTensorLayerBypassGenerativeModel(_MockTensorLayerBypassModel):
     def __init__(self):
         super().__init__()
         self.generate_config = None
@@ -436,7 +503,35 @@ def test_manualskip_uses_native_generate_with_layer_bypass(monkeypatch):
     assert model._generate_single("prompt", {"max_new_tokens": 8}) == "manualskip output"
     assert [layer.calls for layer in mock_model.layers] == [1, 0, 1]
     assert mock_model.generate_config.use_cache is False
-    assert mock_model.generate_kwargs["use_cache"] is False
+    assert "use_cache" not in mock_model.generate_kwargs
+
+
+def test_manualskip_uses_native_generate_with_tensor_layer_bypass(monkeypatch):
+    mock_tokenizer = _MockTokenizer()
+    mock_tokenizer.decoded_text = "manualskip output"
+    mock_model = _MockTensorLayerBypassGenerativeModel()
+    fake_transformers = SimpleNamespace(
+        AutoTokenizer=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: mock_tokenizer,
+        ),
+        AutoModelForCausalLM=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: mock_model,
+        ),
+        GenerationConfig=lambda **kwargs: SimpleNamespace(**kwargs),
+    )
+    monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+    model = HFModel(
+        "mock-model",
+        strategy=ManualSkipStrategy(skip_layers=[2]),
+        device="cpu",
+    )
+
+    assert model._use_strategy is False
+    assert model._generate_single("prompt", {"max_new_tokens": 8}) == "manualskip output"
+    assert [layer.calls for layer in mock_model.layers] == [1, 0, 1]
+    assert mock_model.generate_config.use_cache is False
+    assert "use_cache" not in mock_model.generate_kwargs
 
 
 def test_manualskip_bypasses_configured_transformer_layers(monkeypatch):

@@ -296,11 +296,6 @@ def plot_value_description(normalize: str) -> str:
     return "min-max normalized values per task"
 
 
-def display_metric_name(metric: str) -> str:
-    if metric == "shapley_value":
-        return f"abs({metric})"
-    return metric
-
 
 def display_layer_values(run: CalibrationRun, metric: str) -> List[Tuple[int, float]]:
     values = run.layer_values(metric)
@@ -454,7 +449,7 @@ def write_line_plots(
             label=label,
         )
 
-    metric_label = display_metric_name(metric)
+    metric_label = metric
     ax.set_title(f"{model} - {metric_label}", loc="left", fontsize=15, fontweight="bold", pad=24)
     ax.text(
         0,

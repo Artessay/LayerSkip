@@ -14,10 +14,11 @@ modifying model weights or retraining.
 
 from __future__ import annotations
 
+import inspect
 import logging
 from contextlib import contextmanager
 from collections.abc import Mapping
-from typing import Dict, Iterator, List, Optional, Sequence, Tuple
+from typing import Dict, Iterator, List, Optional, Sequence, Tuple, get_origin
 
 import torch
 import torch.nn.functional as F
@@ -197,11 +198,37 @@ class HFModel(BaseLM):
         )
 
     @staticmethod
-    def _make_bypass_forward():
+    def _layer_forward_returns_tuple(layer: torch.nn.Module) -> bool:
+        try:
+            return_annotation = inspect.signature(layer.forward).return_annotation
+        except (TypeError, ValueError):
+            return True
+
+        if return_annotation is inspect.Signature.empty:
+            return True
+        if return_annotation is torch.Tensor:
+            return False
+        if get_origin(return_annotation) is tuple:
+            return True
+
+        annotation_text = str(return_annotation).replace("typing.", "").lower()
+        if "tuple" in annotation_text:
+            return True
+        if annotation_text in {"torch.tensor", "tensor", "<class 'torch.tensor'>"}:
+            return False
+        if annotation_text.endswith(".tensor"):
+            return False
+        return True
+
+    @staticmethod
+    def _make_bypass_forward(returns_tuple: bool):
         def bypass_forward(*args, **kwargs):
             hidden_states = args[0] if args else kwargs.get("hidden_states")
             if hidden_states is None:
                 raise ValueError("Cannot bypass a layer without hidden_states input")
+
+            if not returns_tuple:
+                return hidden_states
 
             output_attentions = bool(kwargs.get("output_attentions", False))
             use_cache = bool(kwargs.get("use_cache", False))
@@ -228,7 +255,8 @@ class HFModel(BaseLM):
         for idx in self._bypass_layer_indices:
             layer = self._transformer_layers[idx]
             originals.append((layer, layer.forward))
-            layer.forward = self._make_bypass_forward()
+            returns_tuple = self._layer_forward_returns_tuple(layer)
+            layer.forward = self._make_bypass_forward(returns_tuple)
 
         try:
             yield
@@ -836,8 +864,6 @@ class HFModel(BaseLM):
 
         gen_config = GenerationConfig(**config_kwargs)
         generate_kwargs = {**inputs, "generation_config": gen_config}
-        if self._bypass_layer_indices:
-            generate_kwargs["use_cache"] = False
 
         with torch.no_grad():
             with self._bypass_transformer_layers():
