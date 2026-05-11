@@ -15,6 +15,7 @@ setup(
         "tqdm>=4.65.0",
         "evaluate>=0.4.0",
         "scikit-learn>=1.3.0",
+        "matplotlib>=3.7.0",
         "sentencepiece>=0.1.99",
         "protobuf>=3.20.0",
     ],
