@@ -50,8 +50,6 @@ modelscope download --model LLM-Research/Llama-3.2-1B-Instruct --local_dir /data
 
 ## Installation
 
-
-
 ```bash
 git clone https://github.com/Artessay/LayerSkip
 cd LayerSkip
@@ -59,8 +57,6 @@ cd LayerSkip
 conda create -n layer python=3.12 -y
 conda activate layer
 ```
-
-
 
 ```bash
 pip install -e .
