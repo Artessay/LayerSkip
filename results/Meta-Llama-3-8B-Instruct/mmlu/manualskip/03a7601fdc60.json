@@ -1,0 +1,51 @@
+{
+  "model": "Meta-Llama-3-8B-Instruct",
+  "strategy": "manualskip",
+  "task": "mmlu",
+  "evaluation_config": {
+    "model": "Meta-Llama-3-8B-Instruct",
+    "strategy": {
+      "name": "manualskip",
+      "kwargs": {
+        "skip_layers": [
+          26,
+          24,
+          25,
+          28
+        ]
+      },
+      "config": {
+        "skip_layers": [
+          24,
+          25,
+          26,
+          28
+        ]
+      }
+    },
+    "task": {
+      "name": "mmlu",
+      "version": 1,
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 5,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "auto",
+      "dtype": "auto",
+      "trust_remote_code": false
+    }
+  },
+  "results": {
+    "accuracy": 0.22952570858852014
+  },
+  "elapsed_seconds": 3924.52,
+  "samples_file": "results/Meta-Llama-3-8B-Instruct/mmlu/manualskip/03a7601fdc60.jsonl"
+}

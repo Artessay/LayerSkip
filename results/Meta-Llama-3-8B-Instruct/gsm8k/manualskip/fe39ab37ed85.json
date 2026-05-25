@@ -1,0 +1,51 @@
+{
+  "model": "Meta-Llama-3-8B-Instruct",
+  "strategy": "manualskip",
+  "task": "gsm8k",
+  "evaluation_config": {
+    "model": "Meta-Llama-3-8B-Instruct",
+    "strategy": {
+      "name": "manualskip",
+      "kwargs": {
+        "skip_layers": [
+          26,
+          24,
+          25,
+          27
+        ]
+      },
+      "config": {
+        "skip_layers": [
+          24,
+          25,
+          26,
+          27
+        ]
+      }
+    },
+    "task": {
+      "name": "gsm8k",
+      "version": 1,
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 8,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "auto",
+      "dtype": "auto",
+      "trust_remote_code": false
+    }
+  },
+  "results": {
+    "exact_match": 0.5163002274450341
+  },
+  "elapsed_seconds": 22614.32,
+  "samples_file": "results/Meta-Llama-3-8B-Instruct/gsm8k/manualskip/fe39ab37ed85.jsonl"
+}
