@@ -101,9 +101,12 @@ class HFModel(BaseLM):
 
         logger.info("Loading model %s to %s …", model_name, device)
         torch_dtype = (
-            {"auto": "auto", "float16": torch.float16, "bfloat16": torch.bfloat16}.get(
-                dtype, "auto"
-            )
+            {
+                "auto": "auto",
+                "float16": torch.float16,
+                "bfloat16": torch.bfloat16,
+                "float32": torch.float32,
+            }.get(dtype, "auto")
         )
         self.model = AutoModelForCausalLM.from_pretrained(
             model_name,

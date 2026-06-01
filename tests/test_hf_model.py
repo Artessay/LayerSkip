@@ -301,6 +301,29 @@ def test_init_clears_model_generation_max_length(monkeypatch):
     assert mock_model.generation_config.max_length is None
 
 
+def test_init_passes_float32_dtype_to_transformers(monkeypatch):
+    import torch
+
+    mock_model = _MockModel()
+    captured_kwargs = {}
+
+    def from_pretrained(*args, **kwargs):
+        captured_kwargs.update(kwargs)
+        return mock_model
+
+    fake_transformers = SimpleNamespace(
+        AutoTokenizer=SimpleNamespace(
+            from_pretrained=lambda *args, **kwargs: _MockTokenizer(),
+        ),
+        AutoModelForCausalLM=SimpleNamespace(from_pretrained=from_pretrained),
+    )
+    monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
+
+    HFModel("mock-model", device="cpu", dtype="float32")
+
+    assert captured_kwargs["torch_dtype"] is torch.float32
+
+
 def test_eos_token_ids_preserve_model_generation_config(monkeypatch):
     mock_tokenizer = _MockTokenizerWithTerminators()
     mock_tokenizer.eos_token_id = 128009

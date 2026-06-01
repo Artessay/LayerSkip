@@ -196,6 +196,13 @@ class TestEvaluatorBuildModel:
         assert isinstance(call_kwargs["strategy"], ManualSkipStrategy)
         assert call_kwargs["strategy"].skip_layers == (2, 4)
 
+    @patch("evaluation.evaluator.HFModel")
+    def test_build_model_passes_dtype(self, MockHFModel):
+        ev = Evaluator(model_name="mock-model", dtype="float32")
+        ev._build_model()
+
+        assert MockHFModel.call_args.kwargs["dtype"] == "float32"
+
 
 class TestEvaluatorRun:
     """Test the full run() method with mocked model and tasks."""

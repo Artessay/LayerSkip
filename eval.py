@@ -71,7 +71,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-LOCAL_ROOT = Path("/data")
+LOCAL_ROOT = Path("/data/models")
 
 
 def build_parser() -> argparse.ArgumentParser:
