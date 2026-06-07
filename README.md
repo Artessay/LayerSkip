@@ -78,7 +78,7 @@ pip install -r requirements.txt
 python eval.py \
   --model meta-llama/Llama-3.2-1B-Instruct \
   --strategy none \
-  --tasks mmlu hellaswag \
+  --tasks mmlu hellaswag winogrande gsm8k humaneval \
   --local \
   --max_samples 200
 ```

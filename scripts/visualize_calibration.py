@@ -36,6 +36,11 @@ SUPPORTED_CALIBRATION_METRICS = (
 
 SHAPLEY_PLOT_MIN_LAYER = 5
 
+# When ranking shapley_value layers (e.g. to choose the least important layers
+# to deactivate) ignore the first and last few layers, which act as fixed
+# embedding/output adapters. For a 32-layer model this keeps layers 5-28.
+SHAPLEY_RANK_EDGE_EXCLUDE = 4
+
 PALETTE = (
     "#2563eb",
     "#dc2626",
@@ -498,9 +503,22 @@ def effective_rank_mode(metric: str, rank_mode: str) -> str:
     return rank_mode
 
 
+def restrict_shapley_rank_layers(
+    values: Sequence[Tuple[int, float]]
+) -> List[Tuple[int, float]]:
+    """Drop the first and last edge layers before ranking shapley_value."""
+    ordered = sorted(values, key=lambda item: item[0])
+    edge = SHAPLEY_RANK_EDGE_EXCLUDE
+    if edge <= 0 or len(ordered) <= 2 * edge:
+        return ordered
+    return ordered[edge:-edge]
+
+
 def ranked_layers(run: CalibrationRun, metric: str, rank_mode: str) -> List[Tuple[int, float]]:
     mode = effective_rank_mode(metric, rank_mode)
     values = display_layer_values(run, metric)
+    if metric == "shapley_value":
+        values = restrict_shapley_rank_layers(values)
     if mode == "abs":
         return sorted(values, key=lambda item: abs(item[1]), reverse=True)
     return sorted(values, key=lambda item: item[1], reverse=True)

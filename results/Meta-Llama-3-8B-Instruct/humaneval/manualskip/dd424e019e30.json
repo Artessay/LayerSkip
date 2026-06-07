@@ -1,0 +1,51 @@
+{
+  "model": "Meta-Llama-3-8B-Instruct",
+  "strategy": "manualskip",
+  "task": "humaneval",
+  "evaluation_config": {
+    "model": "Meta-Llama-3-8B-Instruct",
+    "strategy": {
+      "name": "manualskip",
+      "kwargs": {
+        "skip_layers": [
+          28,
+          26,
+          27,
+          24
+        ]
+      },
+      "config": {
+        "skip_layers": [
+          24,
+          26,
+          27,
+          28
+        ]
+      }
+    },
+    "task": {
+      "name": "humaneval",
+      "version": 3,
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 0,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "auto",
+      "dtype": "auto",
+      "trust_remote_code": false
+    }
+  },
+  "results": {
+    "pass@1": 0.07926829268292683
+  },
+  "elapsed_seconds": 511.92,
+  "samples_file": "results/Meta-Llama-3-8B-Instruct/humaneval/manualskip/dd424e019e30.jsonl"
+}
