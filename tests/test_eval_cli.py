@@ -6,7 +6,8 @@ import pytest
 
 from eval import (
     _apply_local_dataset_paths,
-    _as_local_path,
+    _as_local_dataset_path,
+    _as_local_model_path,
     _build_strategy_kwargs,
     _parse_manualskip_layers,
     _restore_dataset_paths,
@@ -88,19 +89,31 @@ def test_build_strategy_kwargs_for_calibratedskip():
     }
 
 
-def test_as_local_path_prefixes_hub_id():
-    assert _as_local_path("cais/mmlu") == "/data/cais/mmlu"
+def test_as_local_model_path_prefixes_hub_id():
+    assert _as_local_model_path("meta-llama/Llama-3.2-1B-Instruct") == (
+        "/data/models/meta-llama/Llama-3.2-1B-Instruct"
+    )
 
 
-def test_as_local_path_keeps_absolute_path():
-    assert _as_local_path("/data/cais/mmlu") == "/data/cais/mmlu"
+def test_as_local_model_path_keeps_absolute_path():
+    assert _as_local_model_path("/data/models/meta-llama/Llama-3.2-1B-Instruct") == (
+        "/data/models/meta-llama/Llama-3.2-1B-Instruct"
+    )
+
+
+def test_as_local_dataset_path_prefixes_hub_id():
+    assert _as_local_dataset_path("cais/mmlu") == "/data/datasets/cais/mmlu"
+
+
+def test_as_local_dataset_path_keeps_absolute_path():
+    assert _as_local_dataset_path("/data/datasets/cais/mmlu") == "/data/datasets/cais/mmlu"
 
 
 def test_apply_local_dataset_paths_restores_original_paths():
     original_path = MMLUTask.DATASET_PATH
     originals = _apply_local_dataset_paths(["mmlu"])
     try:
-        assert MMLUTask.DATASET_PATH == "/data/cais/mmlu"
+        assert MMLUTask.DATASET_PATH == "/data/datasets/cais/mmlu"
     finally:
         _restore_dataset_paths(originals)
 
@@ -138,7 +151,7 @@ def test_main_uses_output_as_results_directory(mock_evaluator):
 def test_main_local_uses_data_model_path(mock_evaluator):
     mock_instance = MagicMock()
     mock_instance.run.return_value = {
-        "model": "/data/meta-llama/Llama-3.2-1B-Instruct",
+        "model": "/data/models/meta-llama/Llama-3.2-1B-Instruct",
         "strategy": "none",
         "strategy_config": {},
         "results": {"mmlu": {"accuracy": 0.5}},
@@ -158,7 +171,7 @@ def test_main_local_uses_data_model_path(mock_evaluator):
 
     assert (
         mock_evaluator.call_args.kwargs["model_name"]
-        == "/data/meta-llama/Llama-3.2-1B-Instruct"
+        == "/data/models/meta-llama/Llama-3.2-1B-Instruct"
     )
     assert MMLUTask.DATASET_PATH == "cais/mmlu"
 

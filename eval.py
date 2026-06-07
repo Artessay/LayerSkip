@@ -71,7 +71,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-LOCAL_ROOT = Path("/data/models")
+MODEL_LOCAL_ROOT = Path("/data/models")
+DATASET_LOCAL_ROOT = Path("/data/datasets")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -363,11 +364,18 @@ def _build_task_kwargs(args: argparse.Namespace) -> Dict[str, Dict[str, Any]]:
     return {task: kwargs for task in args.tasks}
 
 
-def _as_local_path(identifier: str) -> str:
+def _as_local_model_path(identifier: str) -> str:
     path = Path(identifier)
     if path.is_absolute():
         return identifier
-    return str(LOCAL_ROOT / identifier)
+    return str(MODEL_LOCAL_ROOT / identifier)
+
+
+def _as_local_dataset_path(identifier: str) -> str:
+    path = Path(identifier)
+    if path.is_absolute():
+        return identifier
+    return str(DATASET_LOCAL_ROOT / identifier)
 
 
 def _apply_local_dataset_paths(task_names: List[str]) -> Dict[str, str]:
@@ -378,7 +386,7 @@ def _apply_local_dataset_paths(task_names: List[str]) -> Dict[str, str]:
         task_cls = TASK_REGISTRY[task_name]
         dataset_path = task_cls.DATASET_PATH
         original_paths[task_name] = dataset_path
-        task_cls.DATASET_PATH = _as_local_path(dataset_path)
+        task_cls.DATASET_PATH = _as_local_dataset_path(dataset_path)
         logger.info(
             "Using local dataset path for task '%s': %s",
             task_name,
@@ -399,7 +407,7 @@ def main(argv: List[str] = None) -> None:
     logging.getLogger().setLevel(getattr(logging, args.verbosity))
 
     if args.local:
-        args.model = _as_local_path(args.model)
+        args.model = _as_local_model_path(args.model)
         logger.info("Using local model path: %s", args.model)
 
     strategies = args.strategy

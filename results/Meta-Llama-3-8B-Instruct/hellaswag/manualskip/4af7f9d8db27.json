@@ -1,0 +1,51 @@
+{
+  "model": "Meta-Llama-3-8B-Instruct",
+  "strategy": "manualskip",
+  "task": "hellaswag",
+  "evaluation_config": {
+    "model": "Meta-Llama-3-8B-Instruct",
+    "strategy": {
+      "name": "manualskip",
+      "kwargs": {
+        "skip_layers": [
+          27,
+          26,
+          25,
+          28
+        ]
+      },
+      "config": {
+        "skip_layers": [
+          25,
+          26,
+          27,
+          28
+        ]
+      }
+    },
+    "task": {
+      "name": "hellaswag",
+      "version": 1,
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 0,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "auto",
+      "dtype": "auto",
+      "trust_remote_code": false
+    }
+  },
+  "results": {
+    "accuracy": 0.5900219079864569
+  },
+  "elapsed_seconds": 1655.86,
+  "samples_file": "results/Meta-Llama-3-8B-Instruct/hellaswag/manualskip/4af7f9d8db27.jsonl"
+}
