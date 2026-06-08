@@ -1,0 +1,37 @@
+{
+  "model": "Llama-3.2-1B-Instruct",
+  "strategy": "none",
+  "task": "gsm8k",
+  "evaluation_config": {
+    "model": "Llama-3.2-1B-Instruct",
+    "strategy": {
+      "name": "none",
+      "kwargs": {},
+      "config": {}
+    },
+    "task": {
+      "name": "gsm8k",
+      "version": 1,
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 8,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "auto",
+      "dtype": "auto",
+      "trust_remote_code": false
+    }
+  },
+  "results": {
+    "exact_match": 0.34268385140257773
+  },
+  "elapsed_seconds": 2524.8,
+  "samples_file": "results/Llama-3.2-1B-Instruct/gsm8k/none/db5b28b09a19.jsonl"
+}
