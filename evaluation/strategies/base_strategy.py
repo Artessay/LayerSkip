@@ -85,5 +85,17 @@ class BaseLayerSkipStrategy(ABC):
         """Return whether the strategy should use the model's native final logits."""
         return False
 
+    @property
+    def execution_mode(self) -> str:
+        """Describe how the strategy changes execution.
+
+        ``structural`` strategies bypass transformer blocks and therefore can
+        reduce executed-layer FLOPs. ``posthoc`` strategies inspect hidden
+        states from a complete forward pass and only change the prediction.
+        Keeping this distinction explicit prevents quality experiments from
+        being mistaken for latency experiments.
+        """
+        return "posthoc"
+
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(config={self.config})"

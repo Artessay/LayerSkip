@@ -18,8 +18,13 @@ STRATEGY_REGISTRY = {
 
 _STRATEGY_DEFAULTS = {
     "layerskip": {"exit_ratio": 0.75, "min_layers": 4},
-    "caml": {"confidence_threshold": 0.9, "min_layers": 4, "check_every": 1},
-    "gateskip": {"gate_threshold": 0.01, "skip_budget": 0.3, "min_layers": 4},
+    "caml": {
+        "confidence_threshold": 0.9,
+        "min_layers": 4,
+        "check_every": 1,
+        "confidence_measure": "softmax",
+    },
+    "gateskip": {"skip_budget": 0.3, "min_layers": 1, "gate_state_path": None},
     "calibratedskip": {
         "skip_layers": [],
         "calibration_metrics": ["activation_ratio", "gradient_trace"],

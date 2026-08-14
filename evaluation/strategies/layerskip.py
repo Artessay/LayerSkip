@@ -10,6 +10,7 @@ All positions in a batch use the same exit layer, which makes this the simplest
 and most predictable of the three strategies.
 """
 
+import math
 from typing import Tuple
 
 import torch
@@ -45,8 +46,28 @@ class LayerSkipStrategy(BaseLayerSkipStrategy):
 
     def compute_exit_layer(self, num_layers: int) -> int:
         """Return the 1-based exit layer index (index into ``hidden_states``)."""
-        raw = int(num_layers * self.exit_ratio)
+        raw = math.ceil(num_layers * self.exit_ratio)
         return max(self.min_layers, min(raw, num_layers))
+
+    @property
+    def execution_mode(self) -> str:
+        return "structural"
+
+    def get_skipped_layer_indices(self, num_layers: int) -> Tuple[int, ...]:
+        """Bypass the suffix after the selected exit layer.
+
+        Passing the exit representation through identity blocks and then the
+        model's native final norm/head is equivalent to applying the final
+        norm/head directly at that exit, while avoiding the suffix compute.
+        """
+        exit_layer = self.compute_exit_layer(num_layers)
+        return tuple(range(exit_layer, num_layers))
+
+    def is_noop(self, num_layers: int) -> bool:
+        return self.compute_exit_layer(num_layers) == num_layers
+
+    def uses_full_model_logits(self, num_layers: int) -> bool:
+        return True
 
     def select_exit_layer(
         self,

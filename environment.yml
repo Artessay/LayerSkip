@@ -1,0 +1,9 @@
+name: layerskip
+channels:
+  - defaults
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - -e .
+      - pytest>=8,<10

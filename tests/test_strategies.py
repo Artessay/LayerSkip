@@ -75,6 +75,16 @@ class TestLayerSkipStrategy:
         # Should not exceed num_layers
         assert s.compute_exit_layer(32) == 32
 
+    def test_structurally_bypasses_suffix(self):
+        s = LayerSkipStrategy(exit_ratio=0.75, min_layers=1)
+        assert s.execution_mode == "structural"
+        assert s.get_skipped_layer_indices(8) == (6, 7)
+        assert s.uses_full_model_logits(8) is True
+
+    def test_fractional_layer_count_rounds_up(self):
+        s = LayerSkipStrategy(exit_ratio=0.75, min_layers=1)
+        assert s.compute_exit_layer(10) == 8
+
     def test_select_exit_layer_returns_int(self):
         s = LayerSkipStrategy(exit_ratio=0.75)
         hs = _make_hidden_states(32)
@@ -211,17 +221,16 @@ class TestGateSkipStrategy:
         # With zero budget, last_active ends at num_layers
         assert idx == 16
 
-    def test_gate_values_computed_correctly(self):
+    def test_quantile_threshold_matches_linear_interpolation(self):
+        scores = torch.tensor([0.0, 1.0, 2.0, 3.0])
+        threshold = GateSkipStrategy.quantile_threshold(scores, 0.5)
+        assert threshold.item() == pytest.approx(1.5)
+
+    def test_requires_trained_gate_state_for_inference(self):
         s = GateSkipStrategy()
         hs = _make_hidden_states(8)
-        gate_values = s._compute_gate_values(hs, 8)
-        assert len(gate_values) == 8
-        assert all(isinstance(v, float) for v in gate_values)
-        assert all(v >= 0 for v in gate_values)
-
-    def test_invalid_gate_threshold(self):
-        with pytest.raises(ValueError):
-            GateSkipStrategy(gate_threshold=-0.1)
+        with pytest.raises(RuntimeError, match="fine-tuned"):
+            s.get_exit_hidden_state(hs, 8)
 
     def test_invalid_skip_budget(self):
         with pytest.raises(ValueError):
@@ -236,18 +245,9 @@ class TestGateSkipStrategy:
     def test_strategy_name(self):
         assert GateSkipStrategy().name == "gateskip"
 
-    def test_high_threshold_exits_last_layer(self):
-        """If gate_threshold is very high, all layers may be skippable (up to budget)."""
-        s = GateSkipStrategy(gate_threshold=1e6, skip_budget=1.0, min_layers=1)
-        hs = _make_hidden_states(16)
-        idx = s.select_exit_layer(hs, 16)
-        # All layers pass the threshold → last_active remains 16 (num_layers default)
-        assert 1 <= idx <= 16
-
     def test_get_strategy_factory(self):
-        s = get_strategy("gateskip", gate_threshold=0.05, skip_budget=0.2)
+        s = get_strategy("gateskip", skip_budget=0.2)
         assert isinstance(s, GateSkipStrategy)
-        assert s.gate_threshold == 0.05
         assert s.skip_budget == 0.2
 
 
@@ -288,6 +288,9 @@ class TestManualSkipStrategy:
 
     def test_strategy_name(self):
         assert ManualSkipStrategy(skip_layers=[2]).name == "manualskip"
+
+    def test_execution_mode_is_structural(self):
+        assert ManualSkipStrategy(skip_layers=[2]).execution_mode == "structural"
 
     def test_get_strategy_factory(self):
         s = get_strategy("manualskip", skip_layers=[2, 4])
@@ -364,7 +367,6 @@ class TestStrategyCrossConsistency:
         strategies = [
             LayerSkipStrategy(),
             CAMLStrategy(),
-            GateSkipStrategy(),
             CalibratedSkipStrategy(skip_layers=[2, 4]),
             ManualSkipStrategy(skip_layers=[2, 4]),
         ]

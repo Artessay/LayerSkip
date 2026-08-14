@@ -50,6 +50,7 @@ def build_task_evaluation_config(
     requested_device: str,
     dtype: str,
     trust_remote_code: bool,
+    apply_chat_template: bool = False,
 ) -> Dict[str, Any]:
     return {
         "model": model_basename(model_name),
@@ -74,6 +75,7 @@ def build_task_evaluation_config(
             "requested_device": requested_device,
             "dtype": dtype,
             "trust_remote_code": trust_remote_code,
+            "apply_chat_template": apply_chat_template,
         },
     }
 

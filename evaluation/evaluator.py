@@ -75,6 +75,7 @@ class Evaluator:
         device: str = "auto",
         dtype: str = "auto",
         trust_remote_code: bool = False,
+        apply_chat_template: bool = False,
         results_dir: Union[str, Path] = "results",
     ) -> None:
         self.model_name = model_name
@@ -86,6 +87,7 @@ class Evaluator:
         self.batch_size = batch_size
         self.dtype = dtype
         self.trust_remote_code = trust_remote_code
+        self.apply_chat_template = apply_chat_template
         self.requested_device = device
         self.results_dir = Path(results_dir)
 
@@ -112,6 +114,7 @@ class Evaluator:
             batch_size=self.batch_size,
             dtype=self.dtype,
             trust_remote_code=self.trust_remote_code,
+            apply_chat_template=self.apply_chat_template,
         )
 
     def _build_task(self, name: str) -> BaseTask:
@@ -168,6 +171,12 @@ class Evaluator:
         elif model.strategy is not None:
             strategy_config = model.strategy.config
 
+        execution_mode = (
+            "full"
+            if model.strategy is None
+            else model.strategy.execution_mode
+        )
+
         results: Dict[str, Any] = {}
         result_files: Dict[str, str] = {}
         sample_files: Dict[str, str] = {}
@@ -193,6 +202,7 @@ class Evaluator:
                     requested_device=self.requested_device,
                     dtype=self.dtype,
                     trust_remote_code=self.trust_remote_code,
+                    apply_chat_template=self.apply_chat_template,
                     results_dir=self.results_dir,
                 )
                 calibration_files[task_name] = calibration["metrics_file"]
@@ -218,6 +228,7 @@ class Evaluator:
                 requested_device=self.requested_device,
                 dtype=self.dtype,
                 trust_remote_code=self.trust_remote_code,
+                apply_chat_template=self.apply_chat_template,
             )
             samples_path = task_samples_path(self.results_dir, evaluation_config)
             sample_files[task_name] = str(samples_path)
@@ -248,6 +259,7 @@ class Evaluator:
             "model": self.saved_model_name,
             "strategy": self.strategy_name,
             "strategy_config": strategy_config,
+            "execution_mode": execution_mode,
             "results": results,
             "result_files": result_files,
             "sample_files": sample_files,

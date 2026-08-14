@@ -59,7 +59,7 @@ def test_task_calibration_split_names():
     assert HellaSwagTask().calibration_split_name == "validation"
     assert WinoGrandeTask().calibration_split_name == "validation"
     assert GSM8KTask().calibration_split_name == "train"
-    assert HumanEvalTask().calibration_split_name == "test"
+    assert HumanEvalTask().calibration_split_name == "unavailable"
 
 
 def test_mmlu_calibration_falls_back_to_train(monkeypatch):
@@ -229,9 +229,10 @@ class TestHellaSwagTask:
         task = HellaSwagTask()
         doc = self._make_doc()
         # Highest normalised LL for index 2
-        results = [(-4.0, False), (-3.0, False), (-1.0, True), (-5.0, False)]
+        results = [(-4.0, False, 4), (-3.0, False, 3), (-1.0, True, 3), (-5.0, False, 4)]
         out = task.process_results(doc, results)
         assert out["accuracy"] == 1
+        assert out["accuracy_norm"] == 1
 
     def test_load_dataset_uses_local_validation_parquet(self, monkeypatch, tmp_path):
         import datasets

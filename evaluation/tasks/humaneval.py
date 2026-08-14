@@ -137,7 +137,7 @@ class HumanEvalTask(BaseTask):
         timeout: Seconds allowed for test execution.
     """
 
-    VERSION = 3
+    VERSION = 4
     DATASET_PATH = "openai/openai_humaneval"
     PROMPT_INSTRUCTION = (
         "Complete the following Python function. Return only the Python code "
@@ -176,11 +176,14 @@ class HumanEvalTask(BaseTask):
         return load_dataset(self.DATASET_PATH, split="test")
 
     def _load_calibration_dataset(self):
-        return self._load_dataset()
+        raise RuntimeError(
+            "HumanEval has no train/validation split. Calibrating pruning on its "
+            "test set is disabled to prevent benchmark leakage."
+        )
 
     @property
     def calibration_split_name(self) -> str:
-        return "test"
+        return "unavailable"
 
     def doc_to_text(self, doc: Dict[str, Any]) -> str:
         return self.PROMPT_INSTRUCTION + doc["prompt"]

@@ -341,7 +341,7 @@ def test_eos_token_ids_preserve_model_generation_config(monkeypatch):
     )
     monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
 
-    model = HFModel("mock-model", device="cpu")
+    model = HFModel("mock-model", device="cpu", apply_chat_template=True)
 
     assert model._eos_token_id_list() == [128001, 128009]
     assert model._generation_eos_token_id() == [128001, 128009]
@@ -360,7 +360,7 @@ def test_tokenizer_chat_template_used_for_prompt_encoding(monkeypatch):
     )
     monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
 
-    model = HFModel("mock-model", device="cpu")
+    model = HFModel("mock-model", device="cpu", apply_chat_template=True)
 
     assert model._encode_prompt_ids("Question: 1 + 1?\nAnswer:") == [
         128000,
@@ -393,7 +393,7 @@ def test_tokenizer_chat_template_batch_encoding_is_flattened(monkeypatch):
     )
     monkeypatch.setitem(sys.modules, "transformers", fake_transformers)
 
-    model = HFModel("mock-model", device="cpu")
+    model = HFModel("mock-model", device="cpu", apply_chat_template=True)
 
     assert model._encode_prompt_ids("Question: 1 + 1?\nAnswer:") == [
         128000,

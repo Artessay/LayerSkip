@@ -8,10 +8,19 @@ different layer-skipping strategies across standard NLP benchmarks.
 | Strategy | Description | Key Paper |
 |----------|-------------|-----------|
 | **none** | Full model (baseline, no skipping) | – |
-| **layerskip** | Static early exit at a fixed fraction of layers | [Elhoushi et al., 2024](https://arxiv.org/abs/2404.16710) |
-| **gateskip** | What Layers When: Learning to Skip Compute in LLMs with Residual Gates | [Laitenberger et al., 2024](https://arxiv.org/abs/2510.13876) |
+| **layerskip** | Static suffix pruning (generic early-exit baseline) | Inspired by [Elhoushi et al., 2024](https://arxiv.org/abs/2404.16710) |
+| **caml** | Token-wise CALM early exit (historical misspelled CLI name) | [Schuster et al., 2022](https://arxiv.org/abs/2207.07061) |
+| **gateskip** | Learned sigmoid residual gates with quantile token budgets | [Laitenberger et al., 2025](https://arxiv.org/abs/2510.13876) |
 | **calibratedskip** | Compute and save calibration-set layer importance metrics | – |
 | **manualskip** | Bypass user-selected transformer layers | – |
+
+> [!IMPORTANT]
+> CALM requires intermediate-head training; ordinary checkpoints require the
+> explicit `--caml_allow_untrained_exits` ablation flag. GateSkip requires a
+> jointly fine-tuned gate state via `--gateskip_gate_state_path`.
+> The generic `layerskip` option does not reproduce the paper's specialized
+> training recipe. See the [baseline audit and roadmap](docs/BASELINE_AUDIT.md)
+> before interpreting or extending results.
 
 ## Supported Benchmarks
 
@@ -122,7 +131,7 @@ python eval.py \
   --model meta-llama/Llama-3.2-1B-Instruct \
   --strategy gateskip \
   --gateskip_skip_budget 0.3 \
-  --gateskip_gate_threshold 0.01 \
+  --gateskip_gate_state_path checkpoints/gates.pt \
   --tasks mmlu hellaswag
 ```
 
@@ -195,9 +204,9 @@ python eval.py --help
 | `--caml_confidence_threshold` | `0.9` | Exit threshold (CAML) |
 | `--caml_min_layers` | `4` | Minimum layers before checking (CAML) |
 | `--caml_check_every` | `1` | Check confidence every N layers (CAML) |
-| `--gateskip_gate_threshold` | `0.01` | Relative-change threshold (GateSkip) |
-| `--gateskip_skip_budget` | `0.3` | Max fraction of layers to skip (GateSkip) |
-| `--gateskip_min_layers` | `4` | Minimum layers before skipping (GateSkip) |
+| `--gateskip_skip_budget` | `0.3` | Target fraction of tokens skipped per gated module (GateSkip) |
+| `--gateskip_gate_state_path` | required | Fine-tuned GateSkip vector-gate state dict |
+| `--gateskip_min_layers` | `1` | Number of initial transformer layers left ungated (GateSkip evaluator) |
 | `--calibratedskip_metrics` | `activation_ratio gradient_trace` | Calibration-only metrics to compute and save for every layer: `activation_ratio`, `gradient_value`, `gradient_trace`, `shapley_value` |
 | `--calibration_max_samples` | all | Cap calibration examples per task |
 | `--manualskip_layers` | required for `manualskip` | 1-based layer numbers to bypass, e.g. `2 4 8` or `2,4,8` |
@@ -303,7 +312,7 @@ LayerSkip/
 │   │   ├── base_strategy.py   # Abstract strategy base class
 │   │   ├── layerskip.py       # Static early-exit strategy
 │   │   ├── caml.py            # Confidence-adaptive strategy
-│   │   ├── gateskip.py        # Gate/change-based strategy
+│   │   ├── gateskip.py        # Checkpoint-backed vector-gate evaluator
 │   │   ├── calibratedskip.py  # Calibration metadata strategy
 │   │   └── manualskip.py      # User-selected layer bypass strategy
 │   ├── tasks/
@@ -337,25 +346,27 @@ pytest tests/ -v
 ### LayerSkip
 
 Executes only the first `exit_ratio × N` transformer layers, then applies the
-model's layer norm and LM head to those intermediate representations. This is
-the fastest strategy to reason about: it always uses the same set of layers
-regardless of the input.
+model's layer norm and LM head to that representation. The implementation
+bypasses all suffix blocks after the exit, so it reduces executed block FLOPs.
+It does not include the LayerSkip paper's training or self-speculative decoder.
 
-### CAML (Confidence-Adaptive Multi-Layer)
+### `caml` (CALM)
 
 At each candidate exit layer (starting from `min_layers`), the strategy
-computes the mean maximum softmax probability over the batch and sequence. The
-first layer that exceeds `confidence_threshold` is used as the exit point.
-"Easy" inputs (high-confidence after few layers) exit early; "hard" inputs
-use more layers.
+uses a per-token top-two softmax probability gap (or hidden-state saturation).
+The first layer exceeding the shared threshold supplies that token's state.
+Generation optionally uses CALM Eq. (5)'s decaying threshold.
 
 ### GateSkip
 
-Computes the *relative change* in hidden-state norms between consecutive
-layers: `||h_l − h_{l−1}|| / ||h_{l−1}||`. Layers where this change is below
-`gate_threshold` are considered low-importance and counted as skipped, up to
-`skip_budget` fraction of the total. The strategy returns the last
-high-importance layer as the exit point.
+Loads jointly trained vector gates `sigmoid(W_l h_l + b_l)`, averages each
+gate over its hidden dimension, and uses a per-layer linearly interpolated
+quantile threshold. Low-ranked tokens copy their residual state; retained
+tokens receive the gated module output, matching the scoring and masking
+equations in Algorithms 2–3. This repository currently reconstructs those
+outputs after a normal full forward pass. It is therefore a checkpoint-quality
+evaluator, not the paper's attention/MLP wrappers or fused kernel, and must not
+be used to report latency or realized FLOP savings.
 
 ### CalibratedSkip
 
@@ -410,10 +421,4 @@ If you use this evaluation framework, please cite the relevant papers:
   year    = {2022}
 }
 
-@article{laitenberger2024gateskip,
-  title   = {What Layers When: Learning to Skip Compute in LLMs with Residual Gates},
-  author  = {Laitenberger, Felix and others},
-  journal = {arXiv preprint arXiv:2510.13876},
-  year    = {2024}
-}
 ```

@@ -55,7 +55,7 @@ class MMLUTask(BaseTask):
         seed: Random seed.
     """
 
-    VERSION = 1
+    VERSION = 2
     DATASET_PATH = "cais/mmlu"
 
     def __init__(
@@ -79,6 +79,10 @@ class MMLUTask(BaseTask):
             unit="subject",
         ):
             ds = load_dataset(self.DATASET_PATH, subject, split=split)
+            if hasattr(ds, "column_names") and "subject" not in ds.column_names:
+                ds = ds.add_column("subject", [subject] * len(ds))
+            elif isinstance(ds, list):
+                ds = [{**row, "subject": subject} if isinstance(row, dict) else row for row in ds]
             splits.append(ds)
         return concatenate_datasets(splits) if len(splits) > 1 else splits[0]
 
@@ -108,13 +112,42 @@ class MMLUTask(BaseTask):
     def calibration_split_name(self) -> str:
         return getattr(self, "_calibration_split_name", "validation")
 
-    def fewshot_examples(self, k: int, rng) -> List[Dict[str, Any]]:
-        if k == 0:
-            return []
-        dev_set = self._load_fewshot_dataset()
-        examples = list(dev_set)
-        rng.shuffle(examples)
-        return examples[:k]
+    def _subject_fewshot_examples(self, subject: str) -> List[Dict[str, Any]]:
+        cache_key = (subject, self.num_fewshot, self.seed)
+        if cache_key not in self._fewshot_cache:
+            import random
+
+            dev_set = self._load_subject_split(
+                "dev", f"mmlu: load {subject} few-shot examples"
+            ) if len(self.subjects) == 1 and self.subjects[0] == subject else None
+            if dev_set is None:
+                from datasets import load_dataset
+                dev_set = load_dataset(self.DATASET_PATH, subject, split="dev")
+            examples = list(dev_set)
+            random.Random(self.seed).shuffle(examples)
+            self._fewshot_cache[cache_key] = examples[: self.num_fewshot]
+        return self._fewshot_cache[cache_key]
+
+    @staticmethod
+    def _subject_heading(subject: str) -> str:
+        return (
+            "The following are multiple choice questions (with answers) about "
+            f"{subject.replace('_', ' ')}.\n\n"
+        )
+
+    def fewshot_context(self, doc: Dict[str, Any]) -> str:
+        subject = doc.get("subject")
+        if subject is None:
+            if self.num_fewshot == 0:
+                return self.doc_to_text(doc)
+            if len(self.subjects) != 1:
+                raise ValueError("MMLU documents must retain their subject")
+            subject = self.subjects[0]
+        parts = [self._subject_heading(subject)]
+        for example in self._subject_fewshot_examples(subject):
+            parts.append(self.doc_to_text(example) + self.doc_to_target(example) + "\n\n")
+        parts.append(self.doc_to_text(doc))
+        return "".join(parts)
 
     def doc_to_text(self, doc: Dict[str, Any]) -> str:
         choices_str = "\n".join(
@@ -122,7 +155,7 @@ class MMLUTask(BaseTask):
             for i, choice in enumerate(doc["choices"])
         )
         return (
-            f"Question: {doc['question']}\n"
+            f"{doc['question']}\n"
             f"{choices_str}\n"
             "Answer:"
         )

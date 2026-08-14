@@ -44,6 +44,7 @@ def _calibration_config(
     requested_device: str,
     dtype: str,
     trust_remote_code: bool,
+    apply_chat_template: bool = False,
 ) -> Dict[str, Any]:
     return {
         "model": model_basename(model_name),
@@ -67,6 +68,7 @@ def _calibration_config(
             "requested_device": requested_device,
             "dtype": dtype,
             "trust_remote_code": trust_remote_code,
+            "apply_chat_template": apply_chat_template,
         },
     }
 
@@ -99,6 +101,7 @@ def calibrate_task_layers(
     requested_device: str,
     dtype: str,
     trust_remote_code: bool,
+    apply_chat_template: bool = False,
     results_dir: Union[str, Path],
 ) -> Dict[str, Any]:
     """Compute and persist layer calibration metrics for one task."""
@@ -136,6 +139,7 @@ def calibrate_task_layers(
         requested_device=requested_device,
         dtype=dtype,
         trust_remote_code=trust_remote_code,
+        apply_chat_template=apply_chat_template,
     )
     output_path = calibration_result_path(results_dir, config)
     output = {

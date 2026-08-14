@@ -23,7 +23,7 @@ class BaseLM(ABC):
     @abstractmethod
     def loglikelihood(
         self, requests: List[Tuple[str, str]]
-    ) -> List[Tuple[float, bool]]:
+    ) -> List[Tuple[float, bool, int]]:
         """
         Compute log-likelihood of continuations given contexts.
 
@@ -31,7 +31,7 @@ class BaseLM(ABC):
             requests: List of ``(context, continuation)`` string pairs.
 
         Returns:
-            List of ``(log_likelihood, is_greedy)`` tuples, one per request.
+            List of ``(log_likelihood, is_greedy, token_count)`` tuples.
             ``is_greedy`` is ``True`` when the continuation matches the greedy
             decode of the context.
         """

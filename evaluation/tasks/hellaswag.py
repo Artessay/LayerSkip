@@ -41,7 +41,7 @@ class HellaSwagTask(BaseTask):
         seed: Random seed.
     """
 
-    VERSION = 1
+    VERSION = 2
     DATASET_PATH = "Rowan/hellaswag"
 
     def __init__(
@@ -92,25 +92,24 @@ class HellaSwagTask(BaseTask):
     def process_results(
         self, doc: Dict[str, Any], results: List[Any]
     ) -> Dict[str, Any]:
-        # Length-normalised log-likelihood
+        # Match lm-evaluation-harness: report both raw and token-normalised
+        # accuracy. Token counts come from the model tokenizer, not words.
         log_likelihoods = [r[0] for r in results]
-        endings = doc["endings"]
-        from evaluation.utils.metrics import length_normalise
-
-        # Tokenisation happens in the model so we use raw char length as proxy
-        normalised = [
-            ll / max(len(e.split()), 1)
-            for ll, e in zip(log_likelihoods, endings)
-        ]
-        predicted = int(max(range(len(normalised)), key=normalised.__getitem__))
+        token_counts = [r[2] for r in results]
+        normalised = [ll / max(count, 1) for ll, count in zip(log_likelihoods, token_counts)]
+        predicted = int(max(range(len(log_likelihoods)), key=log_likelihoods.__getitem__))
+        predicted_norm = int(max(range(len(normalised)), key=normalised.__getitem__))
         correct = int(doc["label"])
-        return {"accuracy": int(predicted == correct)}
+        return {
+            "accuracy": int(predicted == correct),
+            "accuracy_norm": int(predicted_norm == correct),
+        }
 
     def aggregation(self) -> Dict[str, Any]:
-        return {"accuracy": _mean}
+        return {"accuracy": _mean, "accuracy_norm": _mean}
 
     def higher_is_better(self) -> Dict[str, bool]:
-        return {"accuracy": True}
+        return {"accuracy": True, "accuracy_norm": True}
 
     @property
     def name(self) -> str:

@@ -77,6 +77,7 @@ class HFModel(BaseLM):
         batch_size: int = 1,
         dtype: str = "auto",
         trust_remote_code: bool = False,
+        apply_chat_template: bool = False,
     ) -> None:
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -97,7 +98,7 @@ class HFModel(BaseLM):
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         self.tokenizer.padding_side = "left"
-        self._use_chat_template = self._should_use_chat_template()
+        self._use_chat_template = apply_chat_template and self._should_use_chat_template()
 
         logger.info("Loading model %s to %s …", model_name, device)
         torch_dtype = (
@@ -119,6 +120,17 @@ class HFModel(BaseLM):
             self.model.generation_config.max_length = None
 
         self._num_layers: int = self.model.config.num_hidden_layers
+        if (
+            strategy is not None
+            and strategy.name == "caml"
+            and not getattr(strategy, "allow_untrained_exits", False)
+            and not getattr(self.model.config, "calm_intermediate_loss", False)
+        ):
+            raise ValueError(
+                "CALM requires a checkpoint trained with intermediate LM heads. "
+                "Use a CALM checkpoint or pass --caml_allow_untrained_exits to "
+                "run an explicitly non-faithful ablation."
+            )
         self._bypass_layer_indices = self._get_strategy_bypass_layer_indices()
         self._use_strategy = self._should_use_strategy()
         self._transformer_layers: Optional[Sequence[torch.nn.Module]] = None
@@ -530,18 +542,15 @@ class HFModel(BaseLM):
     def _strategy_logits_from_outputs(self, outputs) -> torch.Tensor:
         if self.strategy is None:
             return outputs.logits
-
-        layer_norm = self._get_layer_norm()
-        lm_head = self.model.lm_head
-        exit_layer = self.strategy.select_exit_layer(
+        exit_hidden = self.strategy.get_exit_hidden_state(
             hidden_states=outputs.hidden_states,
             num_layers=self._num_layers,
-            lm_head=lm_head,
-            layer_norm=layer_norm,
+            lm_head=self.model.lm_head,
+            layer_norm=self._get_layer_norm(),
         )
-        if exit_layer == self._num_layers:
+        if exit_hidden is outputs.hidden_states[-1]:
             return outputs.logits
-        return self._logits_from_hidden(outputs.hidden_states[exit_layer])
+        return self._logits_from_hidden(exit_hidden)
 
     def _logits_from_hidden(self, hidden: torch.Tensor) -> torch.Tensor:
         """Apply layer norm + LM head to a hidden state tensor."""
@@ -666,14 +675,14 @@ class HFModel(BaseLM):
 
     def loglikelihood(
         self, requests: List[Tuple[str, str]]
-    ) -> List[Tuple[float, bool]]:
+    ) -> List[Tuple[float, bool, int]]:
         """
         Compute log P(continuation | context) for each request.
 
         Tokenises context+continuation together, masks out the context tokens,
         and sums the log-probabilities of the continuation tokens.
         """
-        results: List[Tuple[float, bool]] = []
+        results: List[Tuple[float, bool, int]] = []
 
         batch_offsets = range(0, len(requests), self._batch_size)
         for i in progress(
@@ -690,7 +699,7 @@ class HFModel(BaseLM):
 
     def _loglikelihood_batch(
         self, batch: List[Tuple[str, str]]
-    ) -> List[Tuple[float, bool]]:
+    ) -> List[Tuple[float, bool, int]]:
         """Process a single batch of loglikelihood requests."""
         # Tokenise context and continuation separately to know the boundary
         contexts, continuations = zip(*batch)
@@ -745,7 +754,7 @@ class HFModel(BaseLM):
 
         log_probs = F.log_softmax(shift_logits, dim=-1)
 
-        results: List[Tuple[float, bool]] = []
+        results: List[Tuple[float, bool, int]] = []
         for b_idx, cont_len in enumerate(cont_lengths):
             # The continuation tokens start at position (seq_len - cont_len)
             seq_len = input_ids_list[b_idx].__len__()
@@ -767,7 +776,7 @@ class HFModel(BaseLM):
                 if greedy_token != token_id:
                     is_greedy = False
 
-            results.append((lp, is_greedy))
+            results.append((lp, is_greedy, cont_len))
 
         return results
 
@@ -895,7 +904,10 @@ class HFModel(BaseLM):
 
         eos_token_ids = set(self._eos_token_id_list())
 
-        for _ in range(max_new_tokens):
+        for generation_step in range(max_new_tokens):
+            set_step = getattr(self.strategy, "set_generation_step", None)
+            if callable(set_step):
+                set_step(generation_step)
             with torch.no_grad():
                 if use_cache:
                     outputs = self._forward_model(

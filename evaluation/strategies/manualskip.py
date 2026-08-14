@@ -55,6 +55,10 @@ class ManualSkipStrategy(BaseLayerSkipStrategy):
     def uses_full_model_logits(self, num_layers: int) -> bool:
         return True
 
+    @property
+    def execution_mode(self) -> str:
+        return "structural"
+
     def select_exit_layer(
         self,
         hidden_states: Tuple[torch.Tensor, ...],

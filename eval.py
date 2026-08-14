@@ -120,6 +120,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Allow executing remote code when loading the model.",
     )
+    model_group.add_argument(
+        "--apply_chat_template",
+        action="store_true",
+        help="Wrap prompts in the tokenizer chat template (off by default for canonical benchmarks).",
+    )
 
     # ------------------------------------------------------------------ #
     # Strategy arguments                                                   #
@@ -173,27 +178,45 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="N",
         help="CAML: check confidence every N layers (default: 1).",
     )
-    # GateSkip-specific
     strategy_group.add_argument(
-        "--gateskip_gate_threshold",
-        type=float,
-        default=0.01,
-        metavar="THRESH",
-        help="GateSkip: relative-change threshold for skippable layers (default: 0.01).",
+        "--caml_confidence_measure",
+        choices=["softmax", "hidden_state"],
+        default="softmax",
+        help="CALM confidence measure (default: softmax response).",
     )
+    strategy_group.add_argument(
+        "--caml_use_decaying_threshold",
+        action="store_true",
+        help="Use CALM Eq. (5) generation-step threshold decay.",
+    )
+    strategy_group.add_argument(
+        "--caml_decay_factor", type=float, default=4.0,
+        help="CALM threshold decay temperature tau (default: 4).",
+    )
+    strategy_group.add_argument(
+        "--caml_allow_untrained_exits", action="store_true",
+        help="Allow CALM heads on a checkpoint not trained with intermediate LM loss.",
+    )
+    # GateSkip-specific
     strategy_group.add_argument(
         "--gateskip_skip_budget",
         type=float,
         default=0.3,
         metavar="BUDGET",
-        help="GateSkip: max fraction of layers to skip (default: 0.3).",
+        help="GateSkip: target fraction of tokens skipped per gated module (default: 0.3).",
     )
     strategy_group.add_argument(
         "--gateskip_min_layers",
         type=int,
-        default=4,
+        default=1,
         metavar="N",
-        help="GateSkip: minimum layers before skipping is considered (default: 4).",
+        help="GateSkip: number of initial transformer layers left ungated (default: 1).",
+    )
+    strategy_group.add_argument(
+        "--gateskip_gate_state_path",
+        type=str,
+        default=None,
+        help="GateSkip fine-tuned gate state dict (required for GateSkip).",
     )
     # CalibratedSkip-specific
     strategy_group.add_argument(
@@ -336,12 +359,16 @@ def _build_strategy_kwargs(args: argparse.Namespace, strategy_name: str) -> Dict
             "confidence_threshold": args.caml_confidence_threshold,
             "min_layers": args.caml_min_layers,
             "check_every": args.caml_check_every,
+            "confidence_measure": args.caml_confidence_measure,
+            "use_decaying_threshold": args.caml_use_decaying_threshold,
+            "decay_factor": args.caml_decay_factor,
+            "allow_untrained_exits": args.caml_allow_untrained_exits,
         }
     if strategy_name == "gateskip":
         return {
-            "gate_threshold": args.gateskip_gate_threshold,
             "skip_budget": args.gateskip_skip_budget,
             "min_layers": args.gateskip_min_layers,
+            "gate_state_path": args.gateskip_gate_state_path,
         }
     if strategy_name == "calibratedskip":
         return {
@@ -440,6 +467,7 @@ def main(argv: List[str] = None) -> None:
                 device=args.device,
                 dtype=args.dtype,
                 trust_remote_code=args.trust_remote_code,
+                apply_chat_template=args.apply_chat_template,
                 results_dir=args.output,
             )
 
