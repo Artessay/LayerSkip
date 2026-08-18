@@ -89,31 +89,143 @@ def test_build_strategy_kwargs_for_calibratedskip():
     }
 
 
+@pytest.mark.parametrize("strategy", ["shortgpt", "sleb", "tale"])
+def test_parser_accepts_pruning_methods(strategy):
+    parser = build_parser()
+
+    args = parser.parse_args(["--strategy", strategy])
+
+    assert args.strategy == [strategy]
+
+
+def test_build_strategy_kwargs_for_shortgpt():
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "--strategy",
+            "shortgpt",
+            "--shortgpt_prune_ratio",
+            "0.3",
+            "--shortgpt_num_remove",
+            "6",
+            "--shortgpt_dataset",
+            "custom/pg19",
+            "--shortgpt_split",
+            "test",
+            "--shortgpt_max_samples",
+            "24",
+            "--shortgpt_sequence_length",
+            "512",
+            "--shortgpt_search_batch_size",
+            "2",
+            "--seed",
+            "7",
+        ]
+    )
+
+    assert _build_strategy_kwargs(args, "shortgpt") == {
+        "prune_ratio": 0.3,
+        "num_remove": 6,
+        "dataset_path": "custom/pg19",
+        "split": "test",
+        "max_samples": 24,
+        "sequence_length": 512,
+        "search_batch_size": 2,
+        "seed": 7,
+    }
+
+
+def test_build_strategy_kwargs_for_sleb_uses_paper_barrier_defaults():
+    parser = build_parser()
+    args = parser.parse_args(["--strategy", "sleb", "--seed", "99"])
+
+    assert _build_strategy_kwargs(args, "sleb") == {
+        "prune_ratio": 0.2,
+        "num_remove": None,
+        "dataset_path": "wikitext",
+        "dataset_name": "wikitext-2-raw-v1",
+        "split": "train",
+        "max_samples": 128,
+        "sequence_length": 2048,
+        "search_batch_size": 1,
+        "early_barrier": 0,
+        "latter_barrier": 0,
+        "seed": 0,
+    }
+
+
+def test_build_strategy_kwargs_for_sleb_accepts_method_seed_override():
+    parser = build_parser()
+    args = parser.parse_args(["--strategy", "sleb", "--sleb_seed", "7"])
+
+    assert _build_strategy_kwargs(args, "sleb")["seed"] == 7
+
+
+def test_build_strategy_kwargs_for_tale_continue_below_threshold():
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "--strategy",
+            "tale",
+            "--tale_threshold",
+            "0.05",
+            "--tale_search_max_samples",
+            "32",
+            "--tale_max_remove",
+            "10",
+            "--tale_target_remove",
+            "8",
+            "--tale_variant",
+            "budget",
+            "--tale_continue_below_threshold",
+            "--seed",
+            "17",
+        ]
+    )
+
+    assert _build_strategy_kwargs(args, "tale") == {
+        "threshold": 0.05,
+        "search_max_samples": 32,
+        "max_remove": 10,
+        "target_remove": 8,
+        "variant": "budget",
+        "stop_at_threshold": False,
+        "seed": 17,
+    }
+
+
+def test_build_strategy_kwargs_for_tale_uses_full_search_split_by_default():
+    parser = build_parser()
+    args = parser.parse_args(["--strategy", "tale"])
+
+    assert _build_strategy_kwargs(args, "tale")["search_max_samples"] is None
+
+
 def test_as_local_model_path_prefixes_hub_id():
     assert _as_local_model_path("meta-llama/Llama-3.2-1B-Instruct") == (
-        "/data/models/meta-llama/Llama-3.2-1B-Instruct"
+        "/data/meta-llama/Llama-3.2-1B-Instruct"
     )
 
 
 def test_as_local_model_path_keeps_absolute_path():
-    assert _as_local_model_path("/data/models/meta-llama/Llama-3.2-1B-Instruct") == (
-        "/data/models/meta-llama/Llama-3.2-1B-Instruct"
+    assert _as_local_model_path("/data/meta-llama/Llama-3.2-1B-Instruct") == (
+        "/data/meta-llama/Llama-3.2-1B-Instruct"
     )
 
 
 def test_as_local_dataset_path_prefixes_hub_id():
-    assert _as_local_dataset_path("cais/mmlu") == "/data/datasets/cais/mmlu"
+    assert _as_local_dataset_path("cais/mmlu") == "/data/cais/mmlu"
 
 
 def test_as_local_dataset_path_keeps_absolute_path():
-    assert _as_local_dataset_path("/data/datasets/cais/mmlu") == "/data/datasets/cais/mmlu"
+    assert _as_local_dataset_path("/data/cais/mmlu") == "/data/cais/mmlu"
 
 
 def test_apply_local_dataset_paths_restores_original_paths():
     original_path = MMLUTask.DATASET_PATH
     originals = _apply_local_dataset_paths(["mmlu"])
     try:
-        assert MMLUTask.DATASET_PATH == "/data/datasets/cais/mmlu"
+        assert MMLUTask.DATASET_PATH == "/data/cais/mmlu"
     finally:
         _restore_dataset_paths(originals)
 
@@ -151,7 +263,7 @@ def test_main_uses_output_as_results_directory(mock_evaluator):
 def test_main_local_uses_data_model_path(mock_evaluator):
     mock_instance = MagicMock()
     mock_instance.run.return_value = {
-        "model": "/data/models/meta-llama/Llama-3.2-1B-Instruct",
+        "model": "/data/meta-llama/Llama-3.2-1B-Instruct",
         "strategy": "none",
         "strategy_config": {},
         "results": {"mmlu": {"accuracy": 0.5}},
@@ -171,8 +283,37 @@ def test_main_local_uses_data_model_path(mock_evaluator):
 
     assert (
         mock_evaluator.call_args.kwargs["model_name"]
-        == "/data/models/meta-llama/Llama-3.2-1B-Instruct"
+        == "/data/meta-llama/Llama-3.2-1B-Instruct"
     )
+    assert MMLUTask.DATASET_PATH == "cais/mmlu"
+
+
+@patch("eval.Evaluator")
+def test_main_local_maps_pruning_search_datasets(mock_evaluator):
+    mock_instance = MagicMock()
+    mock_instance.run.return_value = {
+        "model": "/data/mock-model",
+        "strategy": "shortgpt",
+        "strategy_config": {},
+        "results": {"mmlu": {"accuracy": 0.5}},
+        "elapsed_seconds": 1.0,
+    }
+    mock_evaluator.return_value = mock_instance
+
+    main([
+        "--model",
+        "mock-model",
+        "--strategy",
+        "shortgpt",
+        "sleb",
+        "--tasks",
+        "mmlu",
+        "--local",
+    ])
+
+    calls = mock_evaluator.call_args_list
+    assert calls[0].kwargs["strategy_kwargs"]["dataset_path"] == "/data/emozilla/pg19"
+    assert calls[1].kwargs["strategy_kwargs"]["dataset_path"] == "/data/wikitext"
     assert MMLUTask.DATASET_PATH == "cais/mmlu"
 
 

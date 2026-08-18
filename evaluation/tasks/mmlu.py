@@ -55,8 +55,9 @@ class MMLUTask(BaseTask):
         seed: Random seed.
     """
 
-    VERSION = 2
+    VERSION = 3
     DATASET_PATH = "cais/mmlu"
+    PRIMARY_METRIC = "accuracy"
 
     def __init__(
         self,
@@ -93,26 +94,21 @@ class MMLUTask(BaseTask):
         return self._load_subject_split("dev", "mmlu: load dev subjects")
 
     def _load_calibration_dataset(self):
-        last_error = None
-        for split in ("validation", "train", "dev", "test"):
-            try:
-                dataset = self._load_subject_split(
-                    split,
-                    f"mmlu: load calibration {split} subjects",
-                )
-            except Exception as exc:
-                last_error = exc
-                logger.debug("MMLU calibration split '%s' unavailable: %s", split, exc)
-                continue
-            self._calibration_split_name = split
-            return dataset
-        raise RuntimeError("No MMLU calibration split could be loaded") from last_error
+        # MMLU has a labeled validation split.  Never fall through to test:
+        # TALE and metric-based calibration would otherwise tune on evaluation
+        # labels and invalidate the benchmark result.
+        return self._load_subject_split(
+            "validation",
+            "mmlu: load calibration validation subjects",
+        )
 
     @property
     def calibration_split_name(self) -> str:
-        return getattr(self, "_calibration_split_name", "validation")
+        return "validation"
 
     def _subject_fewshot_examples(self, subject: str) -> List[Dict[str, Any]]:
+        if self.num_fewshot == 0:
+            return []
         cache_key = (subject, self.num_fewshot, self.seed)
         if cache_key not in self._fewshot_cache:
             import random

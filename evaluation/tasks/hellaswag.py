@@ -41,8 +41,9 @@ class HellaSwagTask(BaseTask):
         seed: Random seed.
     """
 
-    VERSION = 2
+    VERSION = 3
     DATASET_PATH = "Rowan/hellaswag"
+    PRIMARY_METRIC = "accuracy_norm"
 
     def __init__(
         self,
@@ -52,27 +53,30 @@ class HellaSwagTask(BaseTask):
     ) -> None:
         super().__init__(num_fewshot=num_fewshot, max_samples=max_samples, seed=seed)
 
-    def _load_dataset(self):
+    def _load_split(self, split: str):
         from datasets import load_dataset
 
         local_path = Path(self.DATASET_PATH)
         if local_path.exists():
-            validation_files = sorted(local_path.rglob("validation-*.parquet"))
-            if validation_files:
+            split_files = sorted(local_path.rglob(f"{split}-*.parquet"))
+            if split_files:
                 return load_dataset(
                     "parquet",
-                    data_files={"validation": [str(path) for path in validation_files]},
-                    split="validation",
+                    data_files={split: [str(path) for path in split_files]},
+                    split=split,
                 )
 
-        return load_dataset(self.DATASET_PATH, split="validation")
+        return load_dataset(self.DATASET_PATH, split=split)
+
+    def _load_dataset(self):
+        return self._load_split("validation")
 
     def _load_calibration_dataset(self):
-        return self._load_dataset()
+        return self._load_split("train")
 
     @property
     def calibration_split_name(self) -> str:
-        return "validation"
+        return "train"
 
     def doc_to_text(self, doc: Dict[str, Any]) -> str:
         ctx = _preprocess(doc["ctx"])

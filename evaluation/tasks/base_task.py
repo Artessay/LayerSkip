@@ -1,6 +1,8 @@
 """Abstract base class and common utilities for evaluation tasks."""
 
 from abc import ABC, abstractmethod
+import hashlib
+import json
 import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
@@ -10,6 +12,18 @@ from evaluation.utils.progress import progress
 from evaluation.utils.result_io import append_jsonl, load_jsonl
 
 logger = logging.getLogger(__name__)
+
+
+def _document_identity(doc: Any) -> str:
+    """Return a stable equality key for ordinary dataset records."""
+
+    return json.dumps(
+        doc,
+        sort_keys=True,
+        ensure_ascii=False,
+        default=str,
+        separators=(",", ":"),
+    )
 
 
 class BaseTask(ABC):
@@ -31,6 +45,7 @@ class BaseTask(ABC):
     # HuggingFace ``datasets`` identifier
     DATASET_PATH: str = ""
     DATASET_NAME: Optional[str] = None
+    PRIMARY_METRIC: Optional[str] = None
 
     def __init__(
         self,
@@ -69,10 +84,14 @@ class BaseTask(ABC):
         """
         Return the raw dataset split used for layer-importance calibration.
 
-        Tasks should prefer validation, then training, and finally fall back to
-        the evaluation/test split when neither is available.
+        Implementations must return a labeled split that is disjoint from the
+        evaluation split.  Falling back to test data is intentionally forbidden
+        because task-aware pruning would otherwise tune on benchmark answers.
         """
-        return self._load_dataset()
+        raise RuntimeError(
+            f"{self.name} does not define a calibration/search split disjoint "
+            "from evaluation data"
+        )
 
     @property
     def calibration_split_name(self) -> str:
@@ -84,8 +103,34 @@ class BaseTask(ABC):
         max_samples: Optional[int] = None,
         seed: Optional[int] = None,
     ) -> List[Dict[str, Any]]:
-        """Load and optionally subsample calibration examples."""
+        """Load and optionally subsample calibration examples.
+
+        When few-shot demonstrations come from the same split (for example
+        GSM8K train), remove them before sampling search documents.  Otherwise
+        a demonstration can reappear as the query while its gold answer is
+        already present in that query's context, inflating task-aware scores.
+        """
         docs = list(self._load_calibration_dataset())
+        if self.num_fewshot:
+            demonstrations = self._get_fewshot_examples()
+            if demonstrations:
+                demonstration_ids = {
+                    _document_identity(doc) for doc in demonstrations
+                }
+                original_count = len(docs)
+                docs = [
+                    doc
+                    for doc in docs
+                    if _document_identity(doc) not in demonstration_ids
+                ]
+                excluded = original_count - len(docs)
+                if excluded:
+                    logger.info(
+                        "Excluded %d few-shot demonstration(s) from the %s "
+                        "calibration/search split.",
+                        excluded,
+                        self.name,
+                    )
         if max_samples is not None:
             import random
 
@@ -207,6 +252,70 @@ class BaseTask(ABC):
     # Full evaluation pipeline                                             #
     # ------------------------------------------------------------------ #
 
+    def evaluation_docs(self) -> List[Dict[str, Any]]:
+        """Return the deterministic document set used for final evaluation."""
+
+        self.load_dataset()
+        docs = list(self._dataset)
+        if self.max_samples is not None:
+            import random
+
+            rng = random.Random(self.seed)
+            docs = rng.sample(docs, min(self.max_samples, len(docs)))
+        return docs
+
+    def evaluate_docs(
+        self,
+        model: BaseLM,
+        docs: List[Dict[str, Any]],
+    ) -> Dict[str, float]:
+        """Evaluate an explicit document list without loading the test split.
+
+        TALE uses this entry point for its labeled search split.  Keeping the
+        documents explicit makes it impossible for that search to silently
+        fall back to ``self._dataset`` (the benchmark evaluation split).
+        """
+
+        docs = list(docs)
+        if self.num_fewshot:
+            self._get_fewshot_examples()
+        return self._evaluate_bulk(model, docs)
+
+    def evaluation_inputs_fingerprint(
+        self,
+        docs: List[Dict[str, Any]],
+    ) -> str:
+        """Hash the exact task requests built from an explicit document set.
+
+        Task-aware pruning checkpoints must not be reused after changing
+        few-shot examples, prompt formatting, generation settings, or another
+        option that changes model requests.  Hashing constructed requests is
+        more robust than trying to enumerate every task-specific attribute.
+        This method only builds requests; it never loads the evaluation split
+        or executes the model.
+        """
+
+        if self.num_fewshot:
+            self._get_fewshot_examples()
+        digest = hashlib.sha256()
+        for doc in docs:
+            context = self.fewshot_context(doc)
+            requests = self.construct_requests(doc, context)
+            payload = json.dumps(
+                {
+                    "doc": doc,
+                    "context": context,
+                    "requests": requests,
+                },
+                sort_keys=True,
+                ensure_ascii=False,
+                default=str,
+                separators=(",", ":"),
+            ).encode("utf-8")
+            digest.update(len(payload).to_bytes(8, "big"))
+            digest.update(payload)
+        return digest.hexdigest()
+
     def evaluate(
         self,
         model: BaseLM,
@@ -226,13 +335,7 @@ class BaseTask(ABC):
         Returns:
             Dict mapping metric names to their aggregated scalar values.
         """
-        self.load_dataset()
-        docs = list(self._dataset)
-        if self.max_samples is not None:
-            import random
-
-            rng = random.Random(self.seed)
-            docs = rng.sample(docs, min(self.max_samples, len(docs)))
+        docs = self.evaluation_docs()
 
         if self.num_fewshot:
             self._get_fewshot_examples()
@@ -433,6 +536,17 @@ class BaseTask(ABC):
     def name(self) -> str:
         """Human-readable task name."""
         return self.__class__.__name__.lower()
+
+    @property
+    def primary_metric(self) -> str:
+        """Canonical scalar used by task-aware pruning searches."""
+
+        if self.PRIMARY_METRIC is not None:
+            return self.PRIMARY_METRIC
+        metrics = list(self.aggregation())
+        if not metrics:
+            raise ValueError(f"Task {self.name!r} defines no aggregate metrics")
+        return metrics[0]
 
     def __repr__(self) -> str:
         return (

@@ -56,29 +56,136 @@ def test_build_calibration_requests_uses_gold_target(monkeypatch):
 
 
 def test_task_calibration_split_names():
-    assert HellaSwagTask().calibration_split_name == "validation"
-    assert WinoGrandeTask().calibration_split_name == "validation"
+    assert MMLUTask().calibration_split_name == "validation"
+    assert HellaSwagTask().calibration_split_name == "train"
+    assert WinoGrandeTask().calibration_split_name == "train"
     assert GSM8KTask().calibration_split_name == "train"
     assert HumanEvalTask().calibration_split_name == "unavailable"
 
 
-def test_mmlu_calibration_falls_back_to_train(monkeypatch):
+def test_mmlu_calibration_never_falls_back_to_train_or_test(monkeypatch):
     import datasets
 
     load_calls = []
 
     def fake_load_dataset(path, subject, split):
         load_calls.append(split)
-        if split == "validation":
-            raise ValueError("no validation split")
-        return [split]
+        raise ValueError("validation unavailable")
 
     monkeypatch.setattr(datasets, "load_dataset", fake_load_dataset)
     task = MMLUTask(subjects=["abstract_algebra"])
 
+    with pytest.raises(ValueError, match="validation unavailable"):
+        task._load_calibration_dataset()
+
+    assert load_calls == ["validation"]
+    assert task.calibration_split_name == "validation"
+
+
+@pytest.mark.parametrize(
+    "task_factory,evaluation_split,calibration_split",
+    [
+        pytest.param(HellaSwagTask, "validation", "train", id="hellaswag"),
+        pytest.param(WinoGrandeTask, "validation", "train", id="winogrande"),
+    ],
+)
+def test_classification_tasks_keep_calibration_disjoint_from_evaluation(
+    monkeypatch,
+    task_factory,
+    evaluation_split,
+    calibration_split,
+):
+    task = task_factory()
+    split_calls = []
+    monkeypatch.setattr(
+        task,
+        "_load_split",
+        lambda split: split_calls.append(split) or [split],
+    )
+
+    assert task._load_dataset() == [evaluation_split]
+    assert task._load_calibration_dataset() == [calibration_split]
+    assert split_calls == [evaluation_split, calibration_split]
+    assert evaluation_split != calibration_split
+
+
+def test_gsm8k_calibration_uses_train_not_test(monkeypatch):
+    task = GSM8KTask()
+    load_test = MagicMock(return_value=["test"])
+    load_train = MagicMock(return_value=["train"])
+    monkeypatch.setattr(task, "_load_dataset", load_test)
+    monkeypatch.setattr(task, "_load_fewshot_dataset", load_train)
+
     assert task._load_calibration_dataset() == ["train"]
-    assert load_calls == ["validation", "train"]
-    assert task.calibration_split_name == "train"
+    load_train.assert_called_once_with()
+    load_test.assert_not_called()
+
+
+def test_calibration_docs_exclude_same_split_fewshot_demonstrations(monkeypatch):
+    task = GSM8KTask(num_fewshot=2)
+    docs = [
+        {"question": f"question-{index}", "answer": f"answer-{index}"}
+        for index in range(6)
+    ]
+    monkeypatch.setattr(task, "_load_calibration_dataset", lambda: list(docs))
+    monkeypatch.setattr(task, "_get_fewshot_examples", lambda: docs[:2])
+
+    assert task.calibration_docs() == docs[2:]
+
+    sampled = task.calibration_docs(max_samples=3, seed=7)
+    assert len(sampled) == 3
+    assert all(doc not in docs[:2] for doc in sampled)
+
+
+def test_zero_shot_calibration_does_not_load_fewshot_examples(monkeypatch):
+    task = GSM8KTask(num_fewshot=0)
+    docs = [{"question": "q", "answer": "a"}]
+    monkeypatch.setattr(task, "_load_calibration_dataset", lambda: list(docs))
+    monkeypatch.setattr(
+        task,
+        "_get_fewshot_examples",
+        MagicMock(side_effect=AssertionError("few-shot data was loaded")),
+    )
+
+    assert task.calibration_docs() == docs
+
+
+def test_humaneval_rejects_calibration_without_loading_test(monkeypatch):
+    task = HumanEvalTask()
+    load_test = MagicMock(side_effect=AssertionError("test split was loaded"))
+    monkeypatch.setattr(task, "_load_dataset", load_test)
+
+    with pytest.raises(RuntimeError, match="test set is disabled"):
+        task.calibration_docs()
+
+    load_test.assert_not_called()
+
+
+def test_evaluate_docs_does_not_load_mmlu_test_split(monkeypatch):
+    task = MMLUTask(subjects=["abstract_algebra"], num_fewshot=0)
+    load_test = MagicMock(side_effect=AssertionError("test split was loaded"))
+    monkeypatch.setattr(task, "_load_dataset", load_test)
+    monkeypatch.setattr(task, "_subject_fewshot_examples", lambda subject: [])
+    model = MagicMock()
+    model.loglikelihood.return_value = [
+        (-2.0, False, 1),
+        (-0.1, True, 1),
+        (-3.0, False, 1),
+        (-4.0, False, 1),
+    ]
+    search_doc = {
+        "question": "What is 2+2?",
+        "choices": ["3", "4", "5", "6"],
+        "answer": 1,
+        "subject": "abstract_algebra",
+    }
+
+    metrics = task.evaluate_docs(model, [search_doc])
+
+    assert metrics == {"accuracy": 1.0}
+    load_test.assert_not_called()
+    assert task._dataset is None
+    assert len(model.loglikelihood.call_args.args[0]) == 4
 
 
 @pytest.mark.parametrize(
@@ -153,6 +260,21 @@ class TestMMLUTask:
         task = MMLUTask()
         doc = self._make_doc()
         assert task.doc_to_target(doc).strip() == "B"
+
+    def test_zero_shot_context_does_not_load_dev_split(self, monkeypatch):
+        task = MMLUTask(subjects=["abstract_algebra"], num_fewshot=0)
+        doc = {**self._make_doc(), "subject": "abstract_algebra"}
+        monkeypatch.setattr(
+            task,
+            "_load_subject_split",
+            lambda *args, **kwargs: (_ for _ in ()).throw(
+                AssertionError("loaded dev split")
+            ),
+        )
+
+        context = task.fewshot_context(doc)
+
+        assert context.endswith(task.doc_to_text(doc))
 
     def test_construct_requests_returns_four(self):
         task = MMLUTask()
@@ -667,6 +789,20 @@ class _MockTask(BaseTask):
 
 
 class TestBaseTaskEvaluate:
+
+    def test_evaluation_inputs_fingerprint_tracks_exact_requests(self):
+        task = _MockTask(num_fewshot=0)
+        docs = task._load_dataset()
+
+        first = task.evaluation_inputs_fingerprint(docs)
+        second = task.evaluation_inputs_fingerprint(docs)
+        changed = task.evaluation_inputs_fingerprint(
+            [{**docs[0], "ctx": "changed"}, docs[1]]
+        )
+
+        assert first == second
+        assert changed != first
+        assert len(first) == 64
 
     def test_evaluate_with_mock_model(self):
         task = _MockTask(num_fewshot=0)

@@ -1,0 +1,38 @@
+{
+  "model": "Meta-Llama-3-8B-Instruct",
+  "strategy": "none",
+  "task": "winogrande",
+  "evaluation_config": {
+    "model": "Meta-Llama-3-8B-Instruct",
+    "strategy": {
+      "name": "none",
+      "kwargs": {},
+      "config": {}
+    },
+    "task": {
+      "name": "winogrande",
+      "version": 1,
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 0,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "cuda",
+      "dtype": "auto",
+      "trust_remote_code": false,
+      "apply_chat_template": false
+    }
+  },
+  "results": {
+    "accuracy": 0.6337805840568271
+  },
+  "elapsed_seconds": 54.74,
+  "samples_file": "results/Meta-Llama-3-8B-Instruct/winogrande/none/fdcbcbbe978f.jsonl"
+}

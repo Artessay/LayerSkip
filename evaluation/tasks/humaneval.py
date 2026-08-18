@@ -139,6 +139,7 @@ class HumanEvalTask(BaseTask):
 
     VERSION = 4
     DATASET_PATH = "openai/openai_humaneval"
+    PRIMARY_METRIC = "pass@1"
     PROMPT_INSTRUCTION = (
         "Complete the following Python function. Return only the Python code "
         "that should be appended after the prompt. Do not include markdown "

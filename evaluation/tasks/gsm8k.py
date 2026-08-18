@@ -83,6 +83,7 @@ class GSM8KTask(BaseTask):
     VERSION = 1
     DATASET_PATH = "openai/gsm8k"
     DATASET_NAME = "main"
+    PRIMARY_METRIC = "exact_match"
 
     _COT_PREAMBLE = "Solve the following math problem step by step."
     _COT_INSTRUCTION = (

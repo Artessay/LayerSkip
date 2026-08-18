@@ -15,6 +15,11 @@ from typing import Any, Dict, List, Optional, Union
 
 from evaluation.calibration import DEFAULT_CALIBRATION_METRICS, calibrate_task_layers
 from evaluation.models.hf_model import HFModel
+from evaluation.pruning import (
+    PRUNING_METHODS,
+    PruningSearchRunner,
+    structurally_pruned,
+)
 from evaluation.strategies import get_strategy
 from evaluation.tasks import get_task
 from evaluation.tasks.base_task import BaseTask
@@ -26,6 +31,22 @@ from evaluation.utils.result_io import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _pruning_strategy_config(search_result: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the stable, result-hashable part of a pruning search result."""
+
+    return {
+        "method": search_result["method"],
+        "num_layers": search_result["num_layers"],
+        "num_removed": search_result["num_removed"],
+        "selected_layers": list(search_result["selected_layers"]),
+        "selected_layers_1based": list(search_result["selected_layers_1based"]),
+        "layer_id_space": search_result["layer_id_space"],
+        "trace_path": search_result["trace_path"],
+        "variant": search_result.get("variant"),
+        "physical_pruning": True,
+    }
 
 
 class Evaluator:
@@ -103,7 +124,10 @@ class Evaluator:
     # ------------------------------------------------------------------ #
 
     def _build_model(self) -> HFModel:
-        if self.strategy_name == "calibratedskip":
+        if (
+            self.strategy_name == "calibratedskip"
+            or self.strategy_name in PRUNING_METHODS
+        ):
             strategy = None
         else:
             strategy = get_strategy(self.strategy_name, **self.strategy_kwargs)
@@ -154,6 +178,7 @@ class Evaluator:
         model = self._build_model()
 
         is_calibration_only = self.strategy_name == "calibratedskip"
+        is_pruning = self.strategy_name in PRUNING_METHODS
         strategy_config: Dict[str, Any] = {}
         if is_calibration_only:
             strategy_config = {
@@ -171,17 +196,43 @@ class Evaluator:
         elif model.strategy is not None:
             strategy_config = model.strategy.config
 
-        execution_mode = (
-            "full"
-            if model.strategy is None
-            else model.strategy.execution_mode
-        )
+        if is_pruning:
+            execution_mode = "structural_pruning"
+        else:
+            execution_mode = (
+                "full"
+                if model.strategy is None
+                else model.strategy.execution_mode
+            )
 
         results: Dict[str, Any] = {}
         result_files: Dict[str, str] = {}
         sample_files: Dict[str, str] = {}
         calibration_files: Dict[str, str] = {}
+        search_files: Dict[str, str] = {}
         t0 = time.time()
+
+        pruning_runner: Optional[PruningSearchRunner] = None
+        global_pruning_result: Optional[Dict[str, Any]] = None
+        if is_pruning:
+            pruning_runner = PruningSearchRunner(
+                model_wrapper=model,
+                model_name=self.model_name,
+                method=self.strategy_name,
+                config=self.strategy_kwargs,
+                results_dir=self.results_dir,
+            )
+            if self.strategy_name == "tale":
+                strategy_config = {
+                    "method": "tale",
+                    "task_specific": True,
+                    "physical_pruning": True,
+                    "tasks": {},
+                }
+            else:
+                global_pruning_result = pruning_runner.run_global()
+                strategy_config = _pruning_strategy_config(global_pruning_result)
+                search_files["global"] = global_pruning_result["trace_path"]
 
         for task_name in self.task_names:
             action = "Calibrating" if is_calibration_only else "Evaluating"
@@ -215,11 +266,21 @@ class Evaluator:
                 )
                 continue
 
+            task_pruning_result = global_pruning_result
+            task_strategy_config = strategy_config
+            if self.strategy_name == "tale":
+                if pruning_runner is None:  # pragma: no cover - guarded above
+                    raise RuntimeError("TALE pruning runner was not initialized")
+                task_pruning_result = pruning_runner.run_task(task_name, task)
+                task_strategy_config = _pruning_strategy_config(task_pruning_result)
+                strategy_config["tasks"][task_name] = task_strategy_config
+                search_files[task_name] = task_pruning_result["trace_path"]
+
             evaluation_config = build_task_evaluation_config(
                 model_name=self.model_name,
                 strategy_name=self.strategy_name,
                 strategy_kwargs=self.strategy_kwargs,
-                strategy_config=strategy_config,
+                strategy_config=task_strategy_config,
                 task_name=task_name,
                 task=task,
                 task_kwargs=self.task_kwargs,
@@ -232,11 +293,22 @@ class Evaluator:
             )
             samples_path = task_samples_path(self.results_dir, evaluation_config)
             sample_files[task_name] = str(samples_path)
-            task_results = task.evaluate(
-                model,
-                samples_path=samples_path,
-                resume=True,
-            )
+            if task_pruning_result is None:
+                task_results = task.evaluate(
+                    model,
+                    samples_path=samples_path,
+                    resume=True,
+                )
+            else:
+                with structurally_pruned(
+                    model,
+                    task_pruning_result["selected_layers"],
+                ):
+                    task_results = task.evaluate(
+                        model,
+                        samples_path=samples_path,
+                        resume=True,
+                    )
             elapsed = time.time() - t_task
             result_files[task_name] = save_task_result(
                 results_dir=self.results_dir,
@@ -267,6 +339,8 @@ class Evaluator:
         }
         if calibration_files:
             output["calibration_files"] = calibration_files
+        if search_files:
+            output["search_files"] = search_files
         return output
 
     # ------------------------------------------------------------------ #

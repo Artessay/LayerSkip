@@ -1,0 +1,154 @@
+{
+  "model": "Llama-3.2-1B-Instruct",
+  "task": "winogrande",
+  "calibration_config": {
+    "model": "Llama-3.2-1B-Instruct",
+    "task": {
+      "name": "winogrande",
+      "calibration_split": "validation",
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 0,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "calibration": {
+      "metrics": [
+        "activation_ratio",
+        "gradient_value",
+        "gradient_trace",
+        "shapley_value"
+      ],
+      "max_samples": 4096
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "cuda",
+      "dtype": "auto",
+      "trust_remote_code": false,
+      "apply_chat_template": false
+    }
+  },
+  "calibration_split": "validation",
+  "num_layers": 16,
+  "num_samples": 1267,
+  "num_batches": 1267,
+  "layers": [
+    {
+      "layer": 1,
+      "activation_ratio": 0.5020409399224807,
+      "gradient_value": 851379.7740441422,
+      "gradient_trace": 11003.125657786886,
+      "shapley_value": -62772.26578684312
+    },
+    {
+      "layer": 2,
+      "activation_ratio": 0.5036640019379846,
+      "gradient_value": 854829.2413254175,
+      "gradient_trace": 10929.692058437531,
+      "shapley_value": -791226.5371328865
+    },
+    {
+      "layer": 3,
+      "activation_ratio": 0.5024931363049095,
+      "gradient_value": 874241.618729577,
+      "gradient_trace": 11430.282828352068,
+      "shapley_value": -24183.229666429143
+    },
+    {
+      "layer": 4,
+      "activation_ratio": 0.5031330749354005,
+      "gradient_value": 955228.6937947563,
+      "gradient_trace": 12414.5409066615,
+      "shapley_value": -26954.677271130146
+    },
+    {
+      "layer": 5,
+      "activation_ratio": 0.5064155361757106,
+      "gradient_value": 962121.9294336495,
+      "gradient_trace": 12344.485392096292,
+      "shapley_value": -26292.831416246736
+    },
+    {
+      "layer": 6,
+      "activation_ratio": 0.5040778423772609,
+      "gradient_value": 926966.5344278897,
+      "gradient_trace": 11688.885866928402,
+      "shapley_value": -24271.824182051227
+    },
+    {
+      "layer": 7,
+      "activation_ratio": 0.5009346737726098,
+      "gradient_value": 924234.7314250558,
+      "gradient_trace": 11585.778236442602,
+      "shapley_value": -23349.499908489415
+    },
+    {
+      "layer": 8,
+      "activation_ratio": 0.5017946543927648,
+      "gradient_value": 857846.0136143264,
+      "gradient_trace": 10889.716866779252,
+      "shapley_value": -23086.325483898712
+    },
+    {
+      "layer": 9,
+      "activation_ratio": 0.5058301033591731,
+      "gradient_value": 844654.5584985692,
+      "gradient_trace": 10702.56497043724,
+      "shapley_value": -23731.903969900948
+    },
+    {
+      "layer": 10,
+      "activation_ratio": 0.5028020025839793,
+      "gradient_value": 792857.6831680033,
+      "gradient_trace": 10388.558393970661,
+      "shapley_value": -23209.514118953306
+    },
+    {
+      "layer": 11,
+      "activation_ratio": 0.5018027293281654,
+      "gradient_value": 719333.5979686321,
+      "gradient_trace": 9528.26758231078,
+      "shapley_value": -19152.341255040457
+    },
+    {
+      "layer": 12,
+      "activation_ratio": 0.5003633720930233,
+      "gradient_value": 603573.8135528143,
+      "gradient_trace": 8221.148064288927,
+      "shapley_value": -15203.003519336728
+    },
+    {
+      "layer": 13,
+      "activation_ratio": 0.4977935239018088,
+      "gradient_value": 513942.43835304095,
+      "gradient_trace": 7104.931732682046,
+      "shapley_value": -13182.591992111025
+    },
+    {
+      "layer": 14,
+      "activation_ratio": 0.4995114664082687,
+      "gradient_value": 485088.048089677,
+      "gradient_trace": 6876.80535110302,
+      "shapley_value": -11522.925041091847
+    },
+    {
+      "layer": 15,
+      "activation_ratio": 0.5005854328165374,
+      "gradient_value": 476556.7694521018,
+      "gradient_trace": 6890.048021095987,
+      "shapley_value": -13245.283711468788
+    },
+    {
+      "layer": 16,
+      "activation_ratio": 0.49662265826873386,
+      "gradient_value": 617630.0177797861,
+      "gradient_trace": 8622.009177181602,
+      "shapley_value": -32160.250842861424
+    }
+  ]
+}

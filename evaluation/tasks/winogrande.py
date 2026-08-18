@@ -31,8 +31,9 @@ class WinoGrandeTask(BaseTask):
         seed: Random seed.
     """
 
-    VERSION = 1
+    VERSION = 2
     DATASET_PATH = "allenai/winogrande"
+    PRIMARY_METRIC = "accuracy"
 
     def __init__(
         self,
@@ -71,11 +72,11 @@ class WinoGrandeTask(BaseTask):
         return self._load_split("train")
 
     def _load_calibration_dataset(self):
-        return self._load_split("validation")
+        return self._load_split("train")
 
     @property
     def calibration_split_name(self) -> str:
-        return "validation"
+        return "train"
 
     def fewshot_examples(self, k: int, rng) -> List[Dict[str, Any]]:
         if k == 0:

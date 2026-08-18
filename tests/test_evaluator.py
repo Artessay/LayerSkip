@@ -1,6 +1,7 @@
 """Tests for the Evaluator orchestrator."""
 
 import json
+from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -182,6 +183,22 @@ class TestEvaluatorBuildModel:
         ev._build_model()
         call_kwargs = MockHFModel.call_args[1]
         assert call_kwargs["strategy"] is None
+
+    @pytest.mark.parametrize("method", ["shortgpt", "sleb", "tale"])
+    @patch("evaluation.evaluator.HFModel")
+    def test_build_model_with_pruning_starts_without_strategy(
+        self,
+        MockHFModel,
+        method,
+    ):
+        ev = Evaluator(
+            model_name="mock-model",
+            strategy_name=method,
+            strategy_kwargs={"num_remove": 2},
+        )
+        ev._build_model()
+
+        assert MockHFModel.call_args.kwargs["strategy"] is None
 
     @patch("evaluation.evaluator.HFModel")
     def test_build_model_with_manualskip(self, MockHFModel):
@@ -369,3 +386,215 @@ class TestEvaluatorRun:
         assert result["calibration_files"] == {
             "mmlu": str(tmp_path / "calibration.json")
         }
+
+    @patch("evaluation.evaluator.structurally_pruned")
+    @patch("evaluation.evaluator.PruningSearchRunner")
+    @patch("evaluation.evaluator.HFModel")
+    @patch("evaluation.evaluator.get_task")
+    def test_global_pruning_search_runs_once_and_structurally_evaluates_each_task(
+        self,
+        mock_get_task,
+        MockHFModel,
+        MockPruningSearchRunner,
+        mock_structurally_pruned,
+        tmp_path,
+    ):
+        active_layers = []
+        structural_calls = []
+
+        @contextmanager
+        def structural_context(model, removed_layers):
+            structural_calls.append((model, tuple(removed_layers)))
+            active_layers.append(tuple(removed_layers))
+            try:
+                yield
+            finally:
+                active_layers.pop()
+
+        mock_structurally_pruned.side_effect = structural_context
+
+        def build_task(name, **kwargs):
+            task = MagicMock()
+            task.num_fewshot = kwargs.get("num_fewshot", 0)
+            task.max_samples = kwargs.get("max_samples")
+            task.seed = kwargs.get("seed", 42)
+
+            def evaluate(*args, **evaluate_kwargs):
+                assert active_layers == [(1, 3)]
+                return {"accuracy": 0.75 if name == "mmlu" else 0.8}
+
+            task.evaluate.side_effect = evaluate
+            return task
+
+        mock_get_task.side_effect = build_task
+        model = MagicMock()
+        model.strategy = None
+        MockHFModel.return_value = model
+        search_result = {
+            "method": "shortgpt",
+            "num_layers": 8,
+            "num_removed": 2,
+            "selected_layers": [1, 3],
+            "selected_layers_1based": [2, 4],
+            "layer_id_space": "original_model_0_based",
+            "trace_path": str(tmp_path / "searches" / "shortgpt.json"),
+            "trace": {"complete": True},
+        }
+        runner = MockPruningSearchRunner.return_value
+        runner.run_global.return_value = search_result
+
+        ev = Evaluator(
+            model_name="org/mock-model",
+            strategy_name="shortgpt",
+            strategy_kwargs={"num_remove": 2, "seed": 7},
+            tasks=["mmlu", "hellaswag"],
+            results_dir=tmp_path,
+        )
+        result = ev.run()
+
+        MockPruningSearchRunner.assert_called_once_with(
+            model_wrapper=model,
+            model_name="org/mock-model",
+            method="shortgpt",
+            config={"num_remove": 2, "seed": 7},
+            results_dir=tmp_path,
+        )
+        runner.run_global.assert_called_once_with()
+        runner.run_task.assert_not_called()
+        assert structural_calls == [(model, (1, 3)), (model, (1, 3))]
+        assert result["execution_mode"] == "structural_pruning"
+        assert result["search_files"] == {"global": search_result["trace_path"]}
+        assert result["strategy_config"] == {
+            "method": "shortgpt",
+            "num_layers": 8,
+            "num_removed": 2,
+            "selected_layers": [1, 3],
+            "selected_layers_1based": [2, 4],
+            "layer_id_space": "original_model_0_based",
+            "trace_path": search_result["trace_path"],
+            "variant": None,
+            "physical_pruning": True,
+        }
+
+        for result_file in result["result_files"].values():
+            with open(result_file) as f:
+                saved = json.load(f)
+            assert saved["evaluation_config"]["strategy"]["config"] == result[
+                "strategy_config"
+            ]
+
+    @patch("evaluation.evaluator.structurally_pruned")
+    @patch("evaluation.evaluator.PruningSearchRunner")
+    @patch("evaluation.evaluator.HFModel")
+    @patch("evaluation.evaluator.get_task")
+    def test_tale_searches_per_task_and_hashes_each_task_selection(
+        self,
+        mock_get_task,
+        MockHFModel,
+        MockPruningSearchRunner,
+        mock_structurally_pruned,
+        tmp_path,
+    ):
+        active_layers = []
+        structural_calls = []
+
+        @contextmanager
+        def structural_context(model, removed_layers):
+            structural_calls.append(tuple(removed_layers))
+            active_layers.append(tuple(removed_layers))
+            try:
+                yield
+            finally:
+                active_layers.pop()
+
+        mock_structurally_pruned.side_effect = structural_context
+        tasks = {}
+        expected_layers = {
+            "mmlu": (1, 5),
+            "hellaswag": (0, 2, 6),
+        }
+
+        def build_task(name, **kwargs):
+            task = MagicMock()
+            task.num_fewshot = 0
+            task.max_samples = None
+            task.seed = 42
+
+            def evaluate(*args, task_name=name, **kwargs):
+                assert active_layers == [expected_layers[task_name]]
+                return {"accuracy": 0.7 if task_name == "mmlu" else 0.8}
+
+            task.evaluate.side_effect = evaluate
+            tasks[name] = task
+            return task
+
+        mock_get_task.side_effect = build_task
+        model = MagicMock()
+        model.strategy = None
+        MockHFModel.return_value = model
+        search_results = {
+            "mmlu": {
+                "method": "tale",
+                "num_layers": 8,
+                "num_removed": 2,
+                "selected_layers": [1, 5],
+                "selected_layers_1based": [2, 6],
+                "layer_id_space": "original_model_0_based",
+                "trace_path": str(tmp_path / "searches" / "mmlu.json"),
+                "trace": {"completed": True},
+                "variant": "threshold_final",
+            },
+            "hellaswag": {
+                "method": "tale",
+                "num_layers": 8,
+                "num_removed": 3,
+                "selected_layers": [0, 2, 6],
+                "selected_layers_1based": [1, 3, 7],
+                "layer_id_space": "original_model_0_based",
+                "trace_path": str(tmp_path / "searches" / "hellaswag.json"),
+                "trace": {"completed": True},
+                "variant": "threshold_final",
+            },
+        }
+        runner = MockPruningSearchRunner.return_value
+        runner.run_task.side_effect = (
+            lambda task_name, task: search_results[task_name]
+        )
+
+        ev = Evaluator(
+            model_name="mock-model",
+            strategy_name="tale",
+            strategy_kwargs={"threshold": 0.08},
+            tasks=["mmlu", "hellaswag"],
+            results_dir=tmp_path,
+        )
+        result = ev.run()
+
+        runner.run_global.assert_not_called()
+        assert runner.run_task.call_args_list[0].args == ("mmlu", tasks["mmlu"])
+        assert runner.run_task.call_args_list[1].args == (
+            "hellaswag",
+            tasks["hellaswag"],
+        )
+        assert structural_calls == [(1, 5), (0, 2, 6)]
+        assert result["execution_mode"] == "structural_pruning"
+        assert result["search_files"] == {
+            task_name: search_result["trace_path"]
+            for task_name, search_result in search_results.items()
+        }
+        assert result["strategy_config"]["method"] == "tale"
+        assert result["strategy_config"]["task_specific"] is True
+        assert set(result["strategy_config"]["tasks"]) == {"mmlu", "hellaswag"}
+
+        saved_configs = {}
+        for task_name, result_file in result["result_files"].items():
+            with open(result_file) as f:
+                saved = json.load(f)
+            saved_configs[task_name] = saved["evaluation_config"]["strategy"][
+                "config"
+            ]
+        assert saved_configs["mmlu"]["selected_layers"] == [1, 5]
+        assert saved_configs["mmlu"]["trace_path"].endswith("mmlu.json")
+        assert saved_configs["hellaswag"]["selected_layers"] == [0, 2, 6]
+        assert saved_configs["hellaswag"]["trace_path"].endswith("hellaswag.json")
+        assert result["result_files"]["mmlu"] != result["result_files"]["hellaswag"]

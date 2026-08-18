@@ -60,6 +60,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from evaluation.evaluator import Evaluator
+from evaluation.pruning import PRUNING_METHODS, TALE_VARIANTS
 from evaluation.strategies import STRATEGY_REGISTRY
 from evaluation.tasks import TASK_REGISTRY
 from evaluation.models.hf_model import SUPPORTED_MODELS
@@ -71,8 +72,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-MODEL_LOCAL_ROOT = Path("/data/models")
-DATASET_LOCAL_ROOT = Path("/data/datasets")
+# README download commands mirror Hugging Face identifiers directly below
+# /data (for example /data/meta-llama/... and /data/cais/...).  Keep --local
+# consistent with that documented on-disk layout.
+MODEL_LOCAL_ROOT = Path("/data")
+DATASET_LOCAL_ROOT = Path("/data")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -134,9 +138,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--strategy",
         nargs="+",
         default=["none"],
-        choices=list(STRATEGY_REGISTRY.keys()),
+        choices=list(STRATEGY_REGISTRY.keys()) + list(PRUNING_METHODS),
         help=(
-            "One or more layer-skipping strategies to evaluate. "
+            "One or more layer-skipping or layer-pruning methods to evaluate. "
             "When multiple strategies are specified all are run and results "
             "are compared. (default: none)"
         ),
@@ -252,6 +256,172 @@ def build_parser() -> argparse.ArgumentParser:
             "ManualSkip: 1-based layer numbers to bypass, e.g. "
             "'--manualskip_layers 2 4 8' or '--manualskip_layers 2,4,8'."
         ),
+    )
+    # ShortGPT-specific
+    strategy_group.add_argument(
+        "--shortgpt_prune_ratio",
+        type=float,
+        default=0.25,
+        metavar="RATIO",
+        help="ShortGPT: fraction of transformer layers to remove (default: 0.25).",
+    )
+    strategy_group.add_argument(
+        "--shortgpt_num_remove",
+        type=int,
+        default=None,
+        metavar="N",
+        help="ShortGPT: exact number of layers to remove (overrides prune ratio).",
+    )
+    strategy_group.add_argument(
+        "--shortgpt_dataset",
+        type=str,
+        default="emozilla/pg19",
+        metavar="PATH",
+        help="ShortGPT: PG19 dataset identifier or local path (default: emozilla/pg19).",
+    )
+    strategy_group.add_argument(
+        "--shortgpt_split",
+        type=str,
+        default="validation",
+        help="ShortGPT: calibration corpus split (default: validation).",
+    )
+    strategy_group.add_argument(
+        "--shortgpt_max_samples",
+        type=int,
+        default=None,
+        metavar="N",
+        help="ShortGPT: cap source documents used for block-influence scoring.",
+    )
+    strategy_group.add_argument(
+        "--shortgpt_sequence_length",
+        type=int,
+        default=256,
+        metavar="TOKENS",
+        help="ShortGPT: non-overlapping calibration chunk length (default: 256).",
+    )
+    strategy_group.add_argument(
+        "--shortgpt_search_batch_size",
+        type=int,
+        default=1,
+        metavar="N",
+        help="ShortGPT: calibration forward-pass batch size (default: 1).",
+    )
+    # SLEB-specific
+    strategy_group.add_argument(
+        "--sleb_prune_ratio",
+        type=float,
+        default=0.2,
+        metavar="RATIO",
+        help="SLEB: fraction of transformer layers to remove (default: 0.2).",
+    )
+    strategy_group.add_argument(
+        "--sleb_num_remove",
+        type=int,
+        default=None,
+        metavar="N",
+        help="SLEB: exact number of layers to remove (overrides prune ratio).",
+    )
+    strategy_group.add_argument(
+        "--sleb_dataset",
+        type=str,
+        default="wikitext",
+        metavar="PATH",
+        help="SLEB: calibration dataset identifier or local path (default: wikitext).",
+    )
+    strategy_group.add_argument(
+        "--sleb_dataset_name",
+        type=str,
+        default="wikitext-2-raw-v1",
+        metavar="NAME",
+        help="SLEB: dataset configuration name (default: wikitext-2-raw-v1).",
+    )
+    strategy_group.add_argument(
+        "--sleb_split",
+        type=str,
+        default="train",
+        help="SLEB: calibration corpus split (default: train).",
+    )
+    strategy_group.add_argument(
+        "--sleb_max_samples",
+        type=int,
+        default=128,
+        metavar="N",
+        help="SLEB: number of source documents to sample (default: 128).",
+    )
+    strategy_group.add_argument(
+        "--sleb_sequence_length",
+        type=int,
+        default=2048,
+        metavar="TOKENS",
+        help="SLEB: calibration sequence length (default: 2048).",
+    )
+    strategy_group.add_argument(
+        "--sleb_search_batch_size",
+        type=int,
+        default=1,
+        metavar="N",
+        help="SLEB: candidate-scoring batch size (default: 1).",
+    )
+    strategy_group.add_argument(
+        "--sleb_seed",
+        type=int,
+        default=0,
+        metavar="N",
+        help="SLEB: corpus sampling seed (paper default: 0).",
+    )
+    strategy_group.add_argument(
+        "--sleb_early_barrier",
+        type=int,
+        default=0,
+        metavar="N",
+        help="SLEB: protect this many initial layers (paper default: 0).",
+    )
+    strategy_group.add_argument(
+        "--sleb_latter_barrier",
+        type=int,
+        default=0,
+        metavar="N",
+        help="SLEB: protect this many final layers (paper default: 0).",
+    )
+    # TALE-specific
+    strategy_group.add_argument(
+        "--tale_threshold",
+        type=float,
+        default=0.08,
+        metavar="DELTA",
+        help="TALE: permitted accuracy drop from the dense model (default: 0.08).",
+    )
+    strategy_group.add_argument(
+        "--tale_search_max_samples",
+        type=int,
+        default=None,
+        metavar="N",
+        help="TALE: cap labeled search examples per task (default: all).",
+    )
+    strategy_group.add_argument(
+        "--tale_max_remove",
+        type=int,
+        default=None,
+        metavar="N",
+        help="TALE: maximum greedy search depth (default: all but one layer).",
+    )
+    strategy_group.add_argument(
+        "--tale_target_remove",
+        type=int,
+        default=None,
+        metavar="N",
+        help="TALE: optional exact removal budget used by the budget variant.",
+    )
+    strategy_group.add_argument(
+        "--tale_variant",
+        choices=list(TALE_VARIANTS),
+        default="threshold_final",
+        help="TALE checkpoint to evaluate (default: threshold_final).",
+    )
+    strategy_group.add_argument(
+        "--tale_continue_below_threshold",
+        action="store_true",
+        help="TALE: continue greedy search after accuracy falls below the threshold.",
     )
 
     # ------------------------------------------------------------------ #
@@ -377,6 +547,41 @@ def _build_strategy_kwargs(args: argparse.Namespace, strategy_name: str) -> Dict
         }
     if strategy_name == "manualskip":
         return {"skip_layers": _parse_manualskip_layers(args.manualskip_layers)}
+    if strategy_name == "shortgpt":
+        return {
+            "prune_ratio": args.shortgpt_prune_ratio,
+            "num_remove": args.shortgpt_num_remove,
+            "dataset_path": args.shortgpt_dataset,
+            "split": args.shortgpt_split,
+            "max_samples": args.shortgpt_max_samples,
+            "sequence_length": args.shortgpt_sequence_length,
+            "search_batch_size": args.shortgpt_search_batch_size,
+            "seed": args.seed,
+        }
+    if strategy_name == "sleb":
+        return {
+            "prune_ratio": args.sleb_prune_ratio,
+            "num_remove": args.sleb_num_remove,
+            "dataset_path": args.sleb_dataset,
+            "dataset_name": args.sleb_dataset_name,
+            "split": args.sleb_split,
+            "max_samples": args.sleb_max_samples,
+            "sequence_length": args.sleb_sequence_length,
+            "search_batch_size": args.sleb_search_batch_size,
+            "early_barrier": args.sleb_early_barrier,
+            "latter_barrier": args.sleb_latter_barrier,
+            "seed": args.sleb_seed,
+        }
+    if strategy_name == "tale":
+        return {
+            "threshold": args.tale_threshold,
+            "search_max_samples": args.tale_search_max_samples,
+            "max_remove": args.tale_max_remove,
+            "target_remove": args.tale_target_remove,
+            "variant": args.tale_variant,
+            "stop_at_threshold": not args.tale_continue_below_threshold,
+            "seed": args.seed,
+        }
     return {}
 
 
@@ -436,6 +641,10 @@ def main(argv: List[str] = None) -> None:
     if args.local:
         args.model = _as_local_model_path(args.model)
         logger.info("Using local model path: %s", args.model)
+        args.shortgpt_dataset = _as_local_dataset_path(args.shortgpt_dataset)
+        args.sleb_dataset = _as_local_dataset_path(args.sleb_dataset)
+        logger.info("Using local ShortGPT dataset path: %s", args.shortgpt_dataset)
+        logger.info("Using local SLEB dataset path: %s", args.sleb_dataset)
 
     strategies = args.strategy
     task_kwargs = _build_task_kwargs(args)
