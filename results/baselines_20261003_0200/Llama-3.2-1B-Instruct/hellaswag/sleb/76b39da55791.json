@@ -1,0 +1,71 @@
+{
+  "model": "Llama-3.2-1B-Instruct",
+  "strategy": "sleb",
+  "task": "hellaswag",
+  "evaluation_config": {
+    "model": "Llama-3.2-1B-Instruct",
+    "strategy": {
+      "name": "sleb",
+      "kwargs": {
+        "prune_ratio": 0.2,
+        "num_remove": 4,
+        "dataset_path": "/data1/qrh/huggingface/datasets/source/Salesforce/wikitext",
+        "dataset_name": "wikitext-2-raw-v1",
+        "split": "train",
+        "max_samples": 128,
+        "sequence_length": 2048,
+        "search_batch_size": 1,
+        "early_barrier": 0,
+        "latter_barrier": 0,
+        "seed": 0
+      },
+      "config": {
+        "method": "sleb",
+        "num_layers": 16,
+        "num_removed": 4,
+        "selected_layers": [
+          5,
+          6,
+          7,
+          12
+        ],
+        "selected_layers_1based": [
+          6,
+          7,
+          8,
+          13
+        ],
+        "layer_id_space": "original_model_0_based",
+        "trace_path": "/data2/qrh/code/LayerSkip/results/baselines_20261003_0200/Llama-3.2-1B-Instruct/pruning/sleb/global/ca4e7261578d.json",
+        "variant": null,
+        "physical_pruning": true
+      }
+    },
+    "task": {
+      "name": "hellaswag",
+      "version": 3,
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 0,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "cuda",
+      "dtype": "auto",
+      "trust_remote_code": false,
+      "apply_chat_template": false
+    }
+  },
+  "results": {
+    "accuracy": 0.32194781915952997,
+    "accuracy_norm": 0.3819956184027086
+  },
+  "elapsed_seconds": 473.61,
+  "samples_file": "/data2/qrh/code/LayerSkip/results/baselines_20261003_0200/Llama-3.2-1B-Instruct/hellaswag/sleb/76b39da55791.jsonl"
+}

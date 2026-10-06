@@ -1,0 +1,411 @@
+{
+  "algorithm_trace": {
+    "baseline": 0.7578125,
+    "baseline_score": 0.7578125,
+    "best": {
+      "removed_layers": [
+        27
+      ],
+      "score": 0.8046875
+    },
+    "bsba": {
+      "removed_layers": [
+        27
+      ],
+      "score": 0.8046875
+    },
+    "budget": null,
+    "budget_status": "not_requested",
+    "completed": false,
+    "num_layers": 32,
+    "removal_order": [
+      27
+    ],
+    "rounds": [
+      {
+        "accepted": true,
+        "base_removed_layers": [],
+        "candidates": [
+          {
+            "layer": 0,
+            "removed_layers": [
+              0
+            ],
+            "score": 0.0
+          },
+          {
+            "layer": 1,
+            "removed_layers": [
+              1
+            ],
+            "score": 0.03125
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              2
+            ],
+            "score": 0.546875
+          },
+          {
+            "layer": 3,
+            "removed_layers": [
+              3
+            ],
+            "score": 0.5859375
+          },
+          {
+            "layer": 4,
+            "removed_layers": [
+              4
+            ],
+            "score": 0.4765625
+          },
+          {
+            "layer": 5,
+            "removed_layers": [
+              5
+            ],
+            "score": 0.4609375
+          },
+          {
+            "layer": 6,
+            "removed_layers": [
+              6
+            ],
+            "score": 0.4453125
+          },
+          {
+            "layer": 7,
+            "removed_layers": [
+              7
+            ],
+            "score": 0.3671875
+          },
+          {
+            "layer": 8,
+            "removed_layers": [
+              8
+            ],
+            "score": 0.5625
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              9
+            ],
+            "score": 0.359375
+          },
+          {
+            "layer": 10,
+            "removed_layers": [
+              10
+            ],
+            "score": 0.4609375
+          },
+          {
+            "layer": 11,
+            "removed_layers": [
+              11
+            ],
+            "score": 0.4453125
+          },
+          {
+            "layer": 12,
+            "removed_layers": [
+              12
+            ],
+            "score": 0.3203125
+          },
+          {
+            "layer": 13,
+            "removed_layers": [
+              13
+            ],
+            "score": 0.2734375
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              14
+            ],
+            "score": 0.515625
+          },
+          {
+            "layer": 15,
+            "removed_layers": [
+              15
+            ],
+            "score": 0.28125
+          },
+          {
+            "layer": 16,
+            "removed_layers": [
+              16
+            ],
+            "score": 0.375
+          },
+          {
+            "layer": 17,
+            "removed_layers": [
+              17
+            ],
+            "score": 0.5859375
+          },
+          {
+            "layer": 18,
+            "removed_layers": [
+              18
+            ],
+            "score": 0.2421875
+          },
+          {
+            "layer": 19,
+            "removed_layers": [
+              19
+            ],
+            "score": 0.65625
+          },
+          {
+            "layer": 20,
+            "removed_layers": [
+              20
+            ],
+            "score": 0.7265625
+          },
+          {
+            "layer": 21,
+            "removed_layers": [
+              21
+            ],
+            "score": 0.71875
+          },
+          {
+            "layer": 22,
+            "removed_layers": [
+              22
+            ],
+            "score": 0.7734375
+          },
+          {
+            "layer": 23,
+            "removed_layers": [
+              23
+            ],
+            "score": 0.7734375
+          },
+          {
+            "layer": 24,
+            "removed_layers": [
+              24
+            ],
+            "score": 0.78125
+          },
+          {
+            "layer": 25,
+            "removed_layers": [
+              25
+            ],
+            "score": 0.796875
+          },
+          {
+            "layer": 26,
+            "removed_layers": [
+              26
+            ],
+            "score": 0.7734375
+          },
+          {
+            "layer": 27,
+            "removed_layers": [
+              27
+            ],
+            "score": 0.8046875
+          },
+          {
+            "layer": 28,
+            "removed_layers": [
+              28
+            ],
+            "score": 0.7734375
+          },
+          {
+            "layer": 29,
+            "removed_layers": [
+              29
+            ],
+            "score": 0.8046875
+          },
+          {
+            "layer": 30,
+            "removed_layers": [
+              30
+            ],
+            "score": 0.6484375
+          },
+          {
+            "layer": 31,
+            "removed_layers": [
+              31
+            ],
+            "score": 0.7109375
+          }
+        ],
+        "meets_threshold": true,
+        "round_index": 1,
+        "selected_layer": 27,
+        "selected_score": 0.8046875
+      },
+      {
+        "base_removed_layers": [
+          27
+        ],
+        "candidates": [
+          {
+            "layer": 0,
+            "removed_layers": [
+              0,
+              27
+            ],
+            "score": 0.015625
+          },
+          {
+            "layer": 1,
+            "removed_layers": [
+              1,
+              27
+            ],
+            "score": 0.0234375
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              2,
+              27
+            ],
+            "score": 0.4609375
+          },
+          {
+            "layer": 3,
+            "removed_layers": [
+              3,
+              27
+            ],
+            "score": 0.5390625
+          },
+          {
+            "layer": 4,
+            "removed_layers": [
+              4,
+              27
+            ],
+            "score": 0.46875
+          },
+          {
+            "layer": 5,
+            "removed_layers": [
+              5,
+              27
+            ],
+            "score": 0.484375
+          },
+          {
+            "layer": 6,
+            "removed_layers": [
+              6,
+              27
+            ],
+            "score": 0.4609375
+          },
+          {
+            "layer": 7,
+            "removed_layers": [
+              7,
+              27
+            ],
+            "score": 0.3359375
+          }
+        ],
+        "round_index": 2
+      }
+    ],
+    "schema_version": 1,
+    "search_config": {
+      "max_remove": 31,
+      "num_layers": 32,
+      "stop_at_threshold": true,
+      "target_remove": null,
+      "threshold": 0.08
+    },
+    "stop_reason": null,
+    "task_search": {
+      "docs_sha256": "54afb2ec7dd5f37ad6f5753a6bae68f985d303c0b73e02687dcdb38aa208c9ad",
+      "inputs_sha256": "565b00eefb64236d900094e7f4c524cd10ae99e43d172a534008ba826b2bc463",
+      "metric": "exact_match",
+      "num_samples": 128,
+      "split": "train",
+      "task": "gsm8k"
+    },
+    "threshold": 0.08,
+    "threshold_final": {
+      "removed_layers": [
+        27
+      ],
+      "score": 0.8046875
+    },
+    "threshold_score": 0.6778125
+  },
+  "method": "tale",
+  "model": "/data/meta-llama/Meta-Llama-3-8B-Instruct",
+  "provenance": {
+    "apply_chat_template": false,
+    "datasets": "4.8.5",
+    "local_artifact_count": 12,
+    "local_artifacts_sha256": "7a1e2282dbda01915426cb56d5c2a33f321f98bae455b392d14902a78b0c4095",
+    "model_batch_size": 1,
+    "model_class": "LlamaForCausalLM",
+    "model_dtype": "torch.bfloat16",
+    "model_revision": null,
+    "model_source": "local",
+    "python": "3.12.13",
+    "tokenizer_class": "PreTrainedTokenizerFast",
+    "tokenizer_name_or_path": "/data/meta-llama/Meta-Llama-3-8B-Instruct",
+    "torch": "2.7.1+cu126",
+    "transformers": "4.57.6"
+  },
+  "schema_version": 1,
+  "scope": "gsm8k",
+  "search_config": {
+    "dataset_path": "/data1/qrh/huggingface/datasets/source/openai/gsm8k",
+    "execution": {
+      "apply_chat_template": false,
+      "datasets": "4.8.5",
+      "local_artifacts_sha256": "7a1e2282dbda01915426cb56d5c2a33f321f98bae455b392d14902a78b0c4095",
+      "model_batch_size": 1,
+      "model_class": "LlamaForCausalLM",
+      "model_dtype": "torch.bfloat16",
+      "model_revision": null,
+      "model_source": "local",
+      "tokenizer_class": "PreTrainedTokenizerFast",
+      "tokenizer_name_or_path": "/data/meta-llama/Meta-Llama-3-8B-Instruct",
+      "torch": "2.7.1+cu126",
+      "transformers": "4.57.6"
+    },
+    "max_remove": 31,
+    "metric": "exact_match",
+    "num_layers": 32,
+    "search_docs_sha256": "54afb2ec7dd5f37ad6f5753a6bae68f985d303c0b73e02687dcdb38aa208c9ad",
+    "search_inputs_sha256": "565b00eefb64236d900094e7f4c524cd10ae99e43d172a534008ba826b2bc463",
+    "search_max_samples": 128,
+    "search_num_samples": 128,
+    "search_split": "train",
+    "seed": 42,
+    "stop_at_threshold": true,
+    "target_remove": null,
+    "task": "gsm8k",
+    "task_num_fewshot": 8,
+    "task_seed": 42,
+    "task_version": 1,
+    "threshold": 0.08
+  }
+}

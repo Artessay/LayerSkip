@@ -1,0 +1,56 @@
+{
+  "model": "Llama-3.2-1B-Instruct",
+  "strategy": "tale",
+  "task": "gsm8k",
+  "evaluation_config": {
+    "model": "Llama-3.2-1B-Instruct",
+    "strategy": {
+      "name": "tale",
+      "kwargs": {
+        "threshold": 0.08,
+        "search_max_samples": 128,
+        "max_remove": null,
+        "target_remove": null,
+        "variant": "threshold_final",
+        "stop_at_threshold": true,
+        "seed": 42
+      },
+      "config": {
+        "method": "tale",
+        "num_layers": 16,
+        "num_removed": 0,
+        "selected_layers": [],
+        "selected_layers_1based": [],
+        "layer_id_space": "original_model_0_based",
+        "trace_path": "/data2/qrh/code/LayerSkip/results/baselines_20261003_0200/Llama-3.2-1B-Instruct/pruning/tale/gsm8k/a8984e082f46.json",
+        "variant": "threshold_final",
+        "physical_pruning": true
+      }
+    },
+    "task": {
+      "name": "gsm8k",
+      "version": 1,
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 8,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "cuda",
+      "dtype": "auto",
+      "trust_remote_code": false,
+      "apply_chat_template": false
+    }
+  },
+  "results": {
+    "exact_match": 0.3464746019711903
+  },
+  "elapsed_seconds": 26395.23,
+  "samples_file": "/data2/qrh/code/LayerSkip/results/baselines_20261003_0200/Llama-3.2-1B-Instruct/gsm8k/tale/d7280560357b.jsonl"
+}

@@ -56,6 +56,7 @@ python eval.py \\
 
 import argparse
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -72,11 +73,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# README download commands mirror Hugging Face identifiers directly below
-# /data (for example /data/meta-llama/... and /data/cais/...).  Keep --local
-# consistent with that documented on-disk layout.
+# Models retain the existing /data layout.  All benchmark and calibration
+# datasets share one Hugging Face source tree so local evaluation has one
+# predictable data root.
 MODEL_LOCAL_ROOT = Path("/data")
-DATASET_LOCAL_ROOT = Path("/data")
+HF_HOME = Path(os.environ.get("HF_HOME", "~/.cache/huggingface")).expanduser()
+DATASET_LOCAL_ROOT = HF_HOME / "datasets" / "source"
+_CALIBRATION_DATASET_ALIASES = {"wikitext": "Salesforce/wikitext"}
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -610,6 +613,12 @@ def _as_local_dataset_path(identifier: str) -> str:
     return str(DATASET_LOCAL_ROOT / identifier)
 
 
+def _as_local_calibration_dataset_path(identifier: str) -> str:
+    """Resolve ShortGPT/SLEB aliases through the common dataset root."""
+    canonical_identifier = _CALIBRATION_DATASET_ALIASES.get(identifier, identifier)
+    return _as_local_dataset_path(canonical_identifier)
+
+
 def _apply_local_dataset_paths(task_names: List[str]) -> Dict[str, str]:
     original_paths: Dict[str, str] = {}
     for task_name in task_names:
@@ -641,8 +650,8 @@ def main(argv: List[str] = None) -> None:
     if args.local:
         args.model = _as_local_model_path(args.model)
         logger.info("Using local model path: %s", args.model)
-        args.shortgpt_dataset = _as_local_dataset_path(args.shortgpt_dataset)
-        args.sleb_dataset = _as_local_dataset_path(args.sleb_dataset)
+        args.shortgpt_dataset = _as_local_calibration_dataset_path(args.shortgpt_dataset)
+        args.sleb_dataset = _as_local_calibration_dataset_path(args.sleb_dataset)
         logger.info("Using local ShortGPT dataset path: %s", args.shortgpt_dataset)
         logger.info("Using local SLEB dataset path: %s", args.sleb_dataset)
 

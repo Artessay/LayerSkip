@@ -1,0 +1,78 @@
+{
+  "model": "Meta-Llama-3-8B-Instruct",
+  "strategy": "sleb",
+  "task": "winogrande",
+  "evaluation_config": {
+    "model": "Meta-Llama-3-8B-Instruct",
+    "strategy": {
+      "name": "sleb",
+      "kwargs": {
+        "prune_ratio": 0.2,
+        "num_remove": 8,
+        "dataset_path": "/data1/qrh/huggingface/datasets/source/Salesforce/wikitext",
+        "dataset_name": "wikitext-2-raw-v1",
+        "split": "train",
+        "max_samples": 128,
+        "sequence_length": 2048,
+        "search_batch_size": 1,
+        "early_barrier": 0,
+        "latter_barrier": 0,
+        "seed": 0
+      },
+      "config": {
+        "method": "sleb",
+        "num_layers": 32,
+        "num_removed": 8,
+        "selected_layers": [
+          10,
+          11,
+          12,
+          19,
+          22,
+          23,
+          25,
+          26
+        ],
+        "selected_layers_1based": [
+          11,
+          12,
+          13,
+          20,
+          23,
+          24,
+          26,
+          27
+        ],
+        "layer_id_space": "original_model_0_based",
+        "trace_path": "/data2/qrh/code/LayerSkip/results/baselines_20261003_0200/Meta-Llama-3-8B-Instruct/pruning/sleb/global/61c5e0b7418e.json",
+        "variant": null,
+        "physical_pruning": true
+      }
+    },
+    "task": {
+      "name": "winogrande",
+      "version": 2,
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 0,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "cuda",
+      "dtype": "auto",
+      "trust_remote_code": false,
+      "apply_chat_template": false
+    }
+  },
+  "results": {
+    "accuracy": 0.5390686661404893
+  },
+  "elapsed_seconds": 41.29,
+  "samples_file": "/data2/qrh/code/LayerSkip/results/baselines_20261003_0200/Meta-Llama-3-8B-Instruct/winogrande/sleb/0a5693709a43.jsonl"
+}

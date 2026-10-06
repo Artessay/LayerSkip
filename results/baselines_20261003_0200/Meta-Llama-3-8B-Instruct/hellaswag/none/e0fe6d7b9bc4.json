@@ -1,0 +1,39 @@
+{
+  "model": "Meta-Llama-3-8B-Instruct",
+  "strategy": "none",
+  "task": "hellaswag",
+  "evaluation_config": {
+    "model": "Meta-Llama-3-8B-Instruct",
+    "strategy": {
+      "name": "none",
+      "kwargs": {},
+      "config": {}
+    },
+    "task": {
+      "name": "hellaswag",
+      "version": 3,
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 0,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "cuda",
+      "dtype": "auto",
+      "trust_remote_code": false,
+      "apply_chat_template": false
+    }
+  },
+  "results": {
+    "accuracy": 0.5615415255925115,
+    "accuracy_norm": 0.7457677753435571
+  },
+  "elapsed_seconds": 989.03,
+  "samples_file": "/data2/qrh/code/LayerSkip/results/baselines_20261003_0200/Meta-Llama-3-8B-Instruct/hellaswag/none/e0fe6d7b9bc4.jsonl"
+}

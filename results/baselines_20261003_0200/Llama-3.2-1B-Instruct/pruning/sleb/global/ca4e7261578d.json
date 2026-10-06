@@ -1,0 +1,600 @@
+{
+  "algorithm_trace": {
+    "complete": true,
+    "corpus_stats": {
+      "available_documents": 36718,
+      "batches": 4,
+      "discarded_tail_tokens": 454,
+      "segments": 4,
+      "selected_documents": 128,
+      "sha256": "5c6257e0f7dc7baab226c88a1c83e56051bcd37af5fe3b0a927b59ed2787bbad",
+      "tokenized_tokens": 8646,
+      "used_tokens": 8192
+    },
+    "early_barrier": 0,
+    "in_progress_round": null,
+    "latter_barrier": 0,
+    "method": "sleb",
+    "num_layers": 16,
+    "num_remove": 4,
+    "removal_order": [
+      6,
+      12,
+      7,
+      5
+    ],
+    "rounds": [
+      {
+        "candidates": [
+          {
+            "layer": 0,
+            "nll": 10.63409868099658,
+            "removed_layers": [
+              0
+            ]
+          },
+          {
+            "layer": 1,
+            "nll": 7.3126526624328285,
+            "removed_layers": [
+              1
+            ]
+          },
+          {
+            "layer": 2,
+            "nll": 3.633610161211529,
+            "removed_layers": [
+              2
+            ]
+          },
+          {
+            "layer": 3,
+            "nll": 3.6878358573522227,
+            "removed_layers": [
+              3
+            ]
+          },
+          {
+            "layer": 4,
+            "nll": 3.400830483634587,
+            "removed_layers": [
+              4
+            ]
+          },
+          {
+            "layer": 5,
+            "nll": 3.3808011724474842,
+            "removed_layers": [
+              5
+            ]
+          },
+          {
+            "layer": 6,
+            "nll": 3.230825598436737,
+            "removed_layers": [
+              6
+            ]
+          },
+          {
+            "layer": 7,
+            "nll": 3.3146067415730336,
+            "removed_layers": [
+              7
+            ]
+          },
+          {
+            "layer": 8,
+            "nll": 3.3111871030776747,
+            "removed_layers": [
+              8
+            ]
+          },
+          {
+            "layer": 9,
+            "nll": 3.449682462139717,
+            "removed_layers": [
+              9
+            ]
+          },
+          {
+            "layer": 10,
+            "nll": 3.4284318514899854,
+            "removed_layers": [
+              10
+            ]
+          },
+          {
+            "layer": 11,
+            "nll": 3.446507083536883,
+            "removed_layers": [
+              11
+            ]
+          },
+          {
+            "layer": 12,
+            "nll": 3.312408402540303,
+            "removed_layers": [
+              12
+            ]
+          },
+          {
+            "layer": 13,
+            "nll": 3.4670249145090377,
+            "removed_layers": [
+              13
+            ]
+          },
+          {
+            "layer": 14,
+            "nll": 3.5676599902296044,
+            "removed_layers": [
+              14
+            ]
+          },
+          {
+            "layer": 15,
+            "nll": 4.113825109916951,
+            "removed_layers": [
+              15
+            ]
+          }
+        ],
+        "round": 0,
+        "selected_layer": 6,
+        "selected_nll": 3.230825598436737
+      },
+      {
+        "candidates": [
+          {
+            "layer": 0,
+            "nll": 10.235466536394725,
+            "removed_layers": [
+              0,
+              6
+            ]
+          },
+          {
+            "layer": 1,
+            "nll": 7.768441621885686,
+            "removed_layers": [
+              1,
+              6
+            ]
+          },
+          {
+            "layer": 2,
+            "nll": 4.160967269174401,
+            "removed_layers": [
+              2,
+              6
+            ]
+          },
+          {
+            "layer": 3,
+            "nll": 4.136297020029311,
+            "removed_layers": [
+              3,
+              6
+            ]
+          },
+          {
+            "layer": 4,
+            "nll": 3.8602833414753297,
+            "removed_layers": [
+              4,
+              6
+            ]
+          },
+          {
+            "layer": 5,
+            "nll": 3.813629702002931,
+            "removed_layers": [
+              5,
+              6
+            ]
+          },
+          {
+            "layer": 7,
+            "nll": 3.667562286272594,
+            "removed_layers": [
+              6,
+              7
+            ]
+          },
+          {
+            "layer": 8,
+            "nll": 3.7432828529555446,
+            "removed_layers": [
+              6,
+              8
+            ]
+          },
+          {
+            "layer": 9,
+            "nll": 3.8881289692232537,
+            "removed_layers": [
+              6,
+              9
+            ]
+          },
+          {
+            "layer": 10,
+            "nll": 3.798974108451392,
+            "removed_layers": [
+              6,
+              10
+            ]
+          },
+          {
+            "layer": 11,
+            "nll": 3.744992672203224,
+            "removed_layers": [
+              6,
+              11
+            ]
+          },
+          {
+            "layer": 12,
+            "nll": 3.5964826575476305,
+            "removed_layers": [
+              6,
+              12
+            ]
+          },
+          {
+            "layer": 13,
+            "nll": 3.824865657059111,
+            "removed_layers": [
+              6,
+              13
+            ]
+          },
+          {
+            "layer": 14,
+            "nll": 3.873961895456766,
+            "removed_layers": [
+              6,
+              14
+            ]
+          },
+          {
+            "layer": 15,
+            "nll": 4.302638006839277,
+            "removed_layers": [
+              6,
+              15
+            ]
+          }
+        ],
+        "round": 1,
+        "selected_layer": 12,
+        "selected_nll": 3.5964826575476305
+      },
+      {
+        "candidates": [
+          {
+            "layer": 0,
+            "nll": 10.24914509037616,
+            "removed_layers": [
+              0,
+              6,
+              12
+            ]
+          },
+          {
+            "layer": 1,
+            "nll": 8.748412310698583,
+            "removed_layers": [
+              1,
+              6,
+              12
+            ]
+          },
+          {
+            "layer": 2,
+            "nll": 4.540791402051783,
+            "removed_layers": [
+              2,
+              6,
+              12
+            ]
+          },
+          {
+            "layer": 3,
+            "nll": 4.488275525158769,
+            "removed_layers": [
+              3,
+              6,
+              12
+            ]
+          },
+          {
+            "layer": 4,
+            "nll": 4.24694675134343,
+            "removed_layers": [
+              4,
+              6,
+              12
+            ]
+          },
+          {
+            "layer": 5,
+            "nll": 4.2496336101612115,
+            "removed_layers": [
+              5,
+              6,
+              12
+            ]
+          },
+          {
+            "layer": 7,
+            "nll": 4.09037616023449,
+            "removed_layers": [
+              6,
+              7,
+              12
+            ]
+          },
+          {
+            "layer": 8,
+            "nll": 4.236932095749878,
+            "removed_layers": [
+              6,
+              8,
+              12
+            ]
+          },
+          {
+            "layer": 9,
+            "nll": 4.426233512457254,
+            "removed_layers": [
+              6,
+              9,
+              12
+            ]
+          },
+          {
+            "layer": 10,
+            "nll": 4.3478260869565215,
+            "removed_layers": [
+              6,
+              10,
+              12
+            ]
+          },
+          {
+            "layer": 11,
+            "nll": 4.260136785539815,
+            "removed_layers": [
+              6,
+              11,
+              12
+            ]
+          },
+          {
+            "layer": 13,
+            "nll": 4.40180752320469,
+            "removed_layers": [
+              6,
+              12,
+              13
+            ]
+          },
+          {
+            "layer": 14,
+            "nll": 4.441377625793844,
+            "removed_layers": [
+              6,
+              12,
+              14
+            ]
+          },
+          {
+            "layer": 15,
+            "nll": 4.772594040058622,
+            "removed_layers": [
+              6,
+              12,
+              15
+            ]
+          }
+        ],
+        "round": 2,
+        "selected_layer": 7,
+        "selected_nll": 4.09037616023449
+      },
+      {
+        "candidates": [
+          {
+            "layer": 0,
+            "nll": 10.178798241328774,
+            "removed_layers": [
+              0,
+              6,
+              7,
+              12
+            ]
+          },
+          {
+            "layer": 1,
+            "nll": 10.03419638495359,
+            "removed_layers": [
+              1,
+              6,
+              7,
+              12
+            ]
+          },
+          {
+            "layer": 2,
+            "nll": 5.417195896433806,
+            "removed_layers": [
+              2,
+              6,
+              7,
+              12
+            ]
+          },
+          {
+            "layer": 3,
+            "nll": 5.333170493404983,
+            "removed_layers": [
+              3,
+              6,
+              7,
+              12
+            ]
+          },
+          {
+            "layer": 4,
+            "nll": 5.148998534440645,
+            "removed_layers": [
+              4,
+              6,
+              7,
+              12
+            ]
+          },
+          {
+            "layer": 5,
+            "nll": 4.640693698094773,
+            "removed_layers": [
+              5,
+              6,
+              7,
+              12
+            ]
+          },
+          {
+            "layer": 8,
+            "nll": 4.776746458231559,
+            "removed_layers": [
+              6,
+              7,
+              8,
+              12
+            ]
+          },
+          {
+            "layer": 9,
+            "nll": 5.225207620908646,
+            "removed_layers": [
+              6,
+              7,
+              9,
+              12
+            ]
+          },
+          {
+            "layer": 10,
+            "nll": 5.046409379579873,
+            "removed_layers": [
+              6,
+              7,
+              10,
+              12
+            ]
+          },
+          {
+            "layer": 11,
+            "nll": 5.023448949682463,
+            "removed_layers": [
+              6,
+              7,
+              11,
+              12
+            ]
+          },
+          {
+            "layer": 13,
+            "nll": 5.3180263800683925,
+            "removed_layers": [
+              6,
+              7,
+              12,
+              13
+            ]
+          },
+          {
+            "layer": 14,
+            "nll": 4.988275525158769,
+            "removed_layers": [
+              6,
+              7,
+              12,
+              14
+            ]
+          },
+          {
+            "layer": 15,
+            "nll": 5.096238397655105,
+            "removed_layers": [
+              6,
+              7,
+              12,
+              15
+            ]
+          }
+        ],
+        "round": 3,
+        "selected_layer": 5,
+        "selected_nll": 4.640693698094773
+      }
+    ],
+    "selected_layers": [
+      5,
+      6,
+      7,
+      12
+    ]
+  },
+  "method": "sleb",
+  "model": "/data/meta-llama/Llama-3.2-1B-Instruct",
+  "provenance": {
+    "apply_chat_template": false,
+    "datasets": "4.8.5",
+    "local_artifact_count": 6,
+    "local_artifacts_sha256": "0352d010db58bd2af274af3a6ea35b0835a7ef04a35a193f03c541e69c70700a",
+    "model_batch_size": 1,
+    "model_class": "LlamaForCausalLM",
+    "model_dtype": "torch.bfloat16",
+    "model_revision": null,
+    "model_source": "local",
+    "python": "3.12.13",
+    "tokenizer_class": "PreTrainedTokenizerFast",
+    "tokenizer_name_or_path": "/data/meta-llama/Llama-3.2-1B-Instruct",
+    "torch": "2.7.1+cu126",
+    "transformers": "4.57.6"
+  },
+  "schema_version": 1,
+  "scope": "global",
+  "search_config": {
+    "corpus_sha256": "5c6257e0f7dc7baab226c88a1c83e56051bcd37af5fe3b0a927b59ed2787bbad",
+    "dataset_name": "wikitext-2-raw-v1",
+    "dataset_path": "/data1/qrh/huggingface/datasets/source/Salesforce/wikitext",
+    "early_barrier": 0,
+    "execution": {
+      "apply_chat_template": false,
+      "datasets": "4.8.5",
+      "local_artifacts_sha256": "0352d010db58bd2af274af3a6ea35b0835a7ef04a35a193f03c541e69c70700a",
+      "model_batch_size": 1,
+      "model_class": "LlamaForCausalLM",
+      "model_dtype": "torch.bfloat16",
+      "model_revision": null,
+      "model_source": "local",
+      "tokenizer_class": "PreTrainedTokenizerFast",
+      "tokenizer_name_or_path": "/data/meta-llama/Llama-3.2-1B-Instruct",
+      "torch": "2.7.1+cu126",
+      "transformers": "4.57.6"
+    },
+    "latter_barrier": 0,
+    "max_samples": 128,
+    "num_layers": 16,
+    "num_remove": 4,
+    "search_batch_size": 1,
+    "seed": 0,
+    "sequence_length": 2048,
+    "split": "train",
+    "text_column": "text"
+  }
+}

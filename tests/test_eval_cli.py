@@ -1,10 +1,12 @@
 """Tests for the eval.py command-line interface."""
 
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from eval import (
+    _as_local_calibration_dataset_path,
     _apply_local_dataset_paths,
     _as_local_dataset_path,
     _as_local_model_path,
@@ -213,19 +215,35 @@ def test_as_local_model_path_keeps_absolute_path():
     )
 
 
-def test_as_local_dataset_path_prefixes_hub_id():
-    assert _as_local_dataset_path("cais/mmlu") == "/data/cais/mmlu"
+def test_as_local_dataset_path_prefixes_hub_id(monkeypatch):
+    monkeypatch.setattr("eval.DATASET_LOCAL_ROOT", Path("/hf/datasets/source"))
+
+    assert _as_local_dataset_path("cais/mmlu") == "/hf/datasets/source/cais/mmlu"
 
 
 def test_as_local_dataset_path_keeps_absolute_path():
     assert _as_local_dataset_path("/data/cais/mmlu") == "/data/cais/mmlu"
 
 
-def test_apply_local_dataset_paths_restores_original_paths():
+def test_local_calibration_dataset_paths_use_hf_home(monkeypatch):
+    monkeypatch.setattr("eval.DATASET_LOCAL_ROOT", Path("/hf/datasets/source"))
+
+    assert (
+        _as_local_calibration_dataset_path("emozilla/pg19")
+        == "/hf/datasets/source/emozilla/pg19"
+    )
+    assert (
+        _as_local_calibration_dataset_path("wikitext")
+        == "/hf/datasets/source/Salesforce/wikitext"
+    )
+
+
+def test_apply_local_dataset_paths_restores_original_paths(monkeypatch):
+    monkeypatch.setattr("eval.DATASET_LOCAL_ROOT", Path("/hf/datasets/source"))
     original_path = MMLUTask.DATASET_PATH
     originals = _apply_local_dataset_paths(["mmlu"])
     try:
-        assert MMLUTask.DATASET_PATH == "/data/cais/mmlu"
+        assert MMLUTask.DATASET_PATH == "/hf/datasets/source/cais/mmlu"
     finally:
         _restore_dataset_paths(originals)
 
@@ -289,7 +307,8 @@ def test_main_local_uses_data_model_path(mock_evaluator):
 
 
 @patch("eval.Evaluator")
-def test_main_local_maps_pruning_search_datasets(mock_evaluator):
+def test_main_local_maps_pruning_search_datasets(mock_evaluator, monkeypatch):
+    monkeypatch.setattr("eval.DATASET_LOCAL_ROOT", Path("/hf/datasets/source"))
     mock_instance = MagicMock()
     mock_instance.run.return_value = {
         "model": "/data/mock-model",
@@ -312,8 +331,12 @@ def test_main_local_maps_pruning_search_datasets(mock_evaluator):
     ])
 
     calls = mock_evaluator.call_args_list
-    assert calls[0].kwargs["strategy_kwargs"]["dataset_path"] == "/data/emozilla/pg19"
-    assert calls[1].kwargs["strategy_kwargs"]["dataset_path"] == "/data/wikitext"
+    assert calls[0].kwargs["strategy_kwargs"]["dataset_path"] == (
+        "/hf/datasets/source/emozilla/pg19"
+    )
+    assert calls[1].kwargs["strategy_kwargs"]["dataset_path"] == (
+        "/hf/datasets/source/Salesforce/wikitext"
+    )
     assert MMLUTask.DATASET_PATH == "cais/mmlu"
 
 

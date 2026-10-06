@@ -39,26 +39,29 @@ different layer-skipping strategies across standard NLP benchmarks.
 | **GSM8K** | Math word problems | Exact match | 8-shot |
 | **HumanEval** | Python code generation | pass@1 | 0-shot |
 
-Datasets can be downloaded ahead of time with ModelScope. Pass `--local` to
-read models and datasets from `/data/<model_or_dataset_id>`.
+Datasets can be downloaded ahead of time with ModelScope. Set `HF_HOME` and
+pass `--local` to read datasets from `$HF_HOME/datasets/source`; local models
+continue to use `/data/<model_id>`.
 
 ```bash
-modelscope download --dataset cais/mmlu --local_dir /data/cais/mmlu
-modelscope download --dataset evalscope/hellaswag --local_dir /data/Rowan/hellaswag
-modelscope download --dataset allenai/winogrande --local_dir /data/allenai/winogrande
-modelscope download --dataset openai-mirror/gsm8k --local_dir /data/openai/gsm8k
-modelscope download --dataset openai-mirror/openai_humaneval --local_dir /data/openai/openai_humaneval
+modelscope download --dataset cais/mmlu --local_dir "$HF_HOME/datasets/source/cais/mmlu"
+modelscope download --dataset evalscope/hellaswag --local_dir "$HF_HOME/datasets/source/Rowan/hellaswag"
+modelscope download --dataset allenai/winogrande --local_dir "$HF_HOME/datasets/source/allenai/winogrande"
+modelscope download --dataset openai-mirror/gsm8k --local_dir "$HF_HOME/datasets/source/openai/gsm8k"
+modelscope download --dataset openai-mirror/openai_humaneval --local_dir "$HF_HOME/datasets/source/openai/openai_humaneval"
 ```
 
 ShortGPT additionally requires PG19 (`emozilla/pg19` by default), and SLEB
 requires WikiText (`wikitext`, configuration `wikitext-2-raw-v1`). With
-`--local`, their defaults resolve to `/data/emozilla/pg19` and `/data/wikitext`;
-download those corpora there or pass `--shortgpt_dataset`/
-`--sleb_dataset` with another local path.
+`--local`, these calibration corpora resolve to
+`$HF_HOME/datasets/source/emozilla/pg19` and
+`$HF_HOME/datasets/source/Salesforce/wikitext`. This keeps Hugging Face source
+data in one location; set `HF_HOME` before running, or pass
+`--shortgpt_dataset` / `--sleb_dataset` with another local path.
 
 ```bash
-huggingface-cli download emozilla/pg19 --repo-type dataset --local-dir /data/emozilla/pg19
-huggingface-cli download Salesforce/wikitext --repo-type dataset --local-dir /data/wikitext
+hf download emozilla/pg19 --repo-type dataset --local-dir "$HF_HOME/datasets/source/emozilla/pg19"
+hf download Salesforce/wikitext --repo-type dataset --local-dir "$HF_HOME/datasets/source/Salesforce/wikitext"
 ```
 
 ## Supported Backbone Models
@@ -334,7 +337,7 @@ python eval.py --help
 | `--max_samples` | all | Per-task example cap |
 | `--num_fewshot` | task default | Override few-shot count for all tasks |
 | `--seed` | `42` | Random seed |
-| `--local` | `False` | Use `/data/<model_or_dataset_id>` paths for the model and datasets |
+| `--local` | `False` | Use `/data/<model_id>` for models and `$HF_HOME/datasets/source/<dataset_id>` for all datasets |
 
 ### Output arguments
 

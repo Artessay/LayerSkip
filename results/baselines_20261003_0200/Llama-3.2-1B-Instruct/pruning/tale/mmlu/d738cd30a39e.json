@@ -1,0 +1,1859 @@
+{
+  "algorithm_trace": {
+    "baseline": 0.390625,
+    "baseline_score": 0.390625,
+    "best": {
+      "removed_layers": [
+        11,
+        12,
+        15
+      ],
+      "score": 0.40625
+    },
+    "bsba": {
+      "removed_layers": [
+        11,
+        12,
+        15
+      ],
+      "score": 0.40625
+    },
+    "budget": null,
+    "budget_status": "not_requested",
+    "completed": true,
+    "num_layers": 16,
+    "removal_order": [
+      15,
+      11,
+      12,
+      13,
+      8,
+      0,
+      6,
+      3,
+      4,
+      5,
+      7,
+      10
+    ],
+    "rounds": [
+      {
+        "accepted": true,
+        "base_removed_layers": [],
+        "candidates": [
+          {
+            "layer": 0,
+            "removed_layers": [
+              0
+            ],
+            "score": 0.2734375
+          },
+          {
+            "layer": 1,
+            "removed_layers": [
+              1
+            ],
+            "score": 0.2421875
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              2
+            ],
+            "score": 0.2890625
+          },
+          {
+            "layer": 3,
+            "removed_layers": [
+              3
+            ],
+            "score": 0.2890625
+          },
+          {
+            "layer": 4,
+            "removed_layers": [
+              4
+            ],
+            "score": 0.3125
+          },
+          {
+            "layer": 5,
+            "removed_layers": [
+              5
+            ],
+            "score": 0.28125
+          },
+          {
+            "layer": 6,
+            "removed_layers": [
+              6
+            ],
+            "score": 0.2265625
+          },
+          {
+            "layer": 7,
+            "removed_layers": [
+              7
+            ],
+            "score": 0.265625
+          },
+          {
+            "layer": 8,
+            "removed_layers": [
+              8
+            ],
+            "score": 0.2421875
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              9
+            ],
+            "score": 0.2578125
+          },
+          {
+            "layer": 10,
+            "removed_layers": [
+              10
+            ],
+            "score": 0.2578125
+          },
+          {
+            "layer": 11,
+            "removed_layers": [
+              11
+            ],
+            "score": 0.3671875
+          },
+          {
+            "layer": 12,
+            "removed_layers": [
+              12
+            ],
+            "score": 0.359375
+          },
+          {
+            "layer": 13,
+            "removed_layers": [
+              13
+            ],
+            "score": 0.1875
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              14
+            ],
+            "score": 0.3671875
+          },
+          {
+            "layer": 15,
+            "removed_layers": [
+              15
+            ],
+            "score": 0.3828125
+          }
+        ],
+        "meets_threshold": true,
+        "round_index": 1,
+        "selected_layer": 15,
+        "selected_score": 0.3828125
+      },
+      {
+        "accepted": true,
+        "base_removed_layers": [
+          15
+        ],
+        "candidates": [
+          {
+            "layer": 0,
+            "removed_layers": [
+              0,
+              15
+            ],
+            "score": 0.234375
+          },
+          {
+            "layer": 1,
+            "removed_layers": [
+              1,
+              15
+            ],
+            "score": 0.234375
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              2,
+              15
+            ],
+            "score": 0.296875
+          },
+          {
+            "layer": 3,
+            "removed_layers": [
+              3,
+              15
+            ],
+            "score": 0.3125
+          },
+          {
+            "layer": 4,
+            "removed_layers": [
+              4,
+              15
+            ],
+            "score": 0.28125
+          },
+          {
+            "layer": 5,
+            "removed_layers": [
+              5,
+              15
+            ],
+            "score": 0.3125
+          },
+          {
+            "layer": 6,
+            "removed_layers": [
+              6,
+              15
+            ],
+            "score": 0.2265625
+          },
+          {
+            "layer": 7,
+            "removed_layers": [
+              7,
+              15
+            ],
+            "score": 0.25
+          },
+          {
+            "layer": 8,
+            "removed_layers": [
+              8,
+              15
+            ],
+            "score": 0.3203125
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              9,
+              15
+            ],
+            "score": 0.3046875
+          },
+          {
+            "layer": 10,
+            "removed_layers": [
+              10,
+              15
+            ],
+            "score": 0.265625
+          },
+          {
+            "layer": 11,
+            "removed_layers": [
+              11,
+              15
+            ],
+            "score": 0.390625
+          },
+          {
+            "layer": 12,
+            "removed_layers": [
+              12,
+              15
+            ],
+            "score": 0.3671875
+          },
+          {
+            "layer": 13,
+            "removed_layers": [
+              13,
+              15
+            ],
+            "score": 0.25
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              14,
+              15
+            ],
+            "score": 0.359375
+          }
+        ],
+        "meets_threshold": true,
+        "round_index": 2,
+        "selected_layer": 11,
+        "selected_score": 0.390625
+      },
+      {
+        "accepted": true,
+        "base_removed_layers": [
+          11,
+          15
+        ],
+        "candidates": [
+          {
+            "layer": 0,
+            "removed_layers": [
+              0,
+              11,
+              15
+            ],
+            "score": 0.203125
+          },
+          {
+            "layer": 1,
+            "removed_layers": [
+              1,
+              11,
+              15
+            ],
+            "score": 0.234375
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              2,
+              11,
+              15
+            ],
+            "score": 0.2578125
+          },
+          {
+            "layer": 3,
+            "removed_layers": [
+              3,
+              11,
+              15
+            ],
+            "score": 0.3203125
+          },
+          {
+            "layer": 4,
+            "removed_layers": [
+              4,
+              11,
+              15
+            ],
+            "score": 0.2734375
+          },
+          {
+            "layer": 5,
+            "removed_layers": [
+              5,
+              11,
+              15
+            ],
+            "score": 0.359375
+          },
+          {
+            "layer": 6,
+            "removed_layers": [
+              6,
+              11,
+              15
+            ],
+            "score": 0.203125
+          },
+          {
+            "layer": 7,
+            "removed_layers": [
+              7,
+              11,
+              15
+            ],
+            "score": 0.25
+          },
+          {
+            "layer": 8,
+            "removed_layers": [
+              8,
+              11,
+              15
+            ],
+            "score": 0.265625
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              9,
+              11,
+              15
+            ],
+            "score": 0.3125
+          },
+          {
+            "layer": 10,
+            "removed_layers": [
+              10,
+              11,
+              15
+            ],
+            "score": 0.25
+          },
+          {
+            "layer": 12,
+            "removed_layers": [
+              11,
+              12,
+              15
+            ],
+            "score": 0.40625
+          },
+          {
+            "layer": 13,
+            "removed_layers": [
+              11,
+              13,
+              15
+            ],
+            "score": 0.2890625
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              11,
+              14,
+              15
+            ],
+            "score": 0.3515625
+          }
+        ],
+        "meets_threshold": true,
+        "round_index": 3,
+        "selected_layer": 12,
+        "selected_score": 0.40625
+      },
+      {
+        "accepted": true,
+        "base_removed_layers": [
+          11,
+          12,
+          15
+        ],
+        "candidates": [
+          {
+            "layer": 0,
+            "removed_layers": [
+              0,
+              11,
+              12,
+              15
+            ],
+            "score": 0.2734375
+          },
+          {
+            "layer": 1,
+            "removed_layers": [
+              1,
+              11,
+              12,
+              15
+            ],
+            "score": 0.2109375
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              2,
+              11,
+              12,
+              15
+            ],
+            "score": 0.234375
+          },
+          {
+            "layer": 3,
+            "removed_layers": [
+              3,
+              11,
+              12,
+              15
+            ],
+            "score": 0.2578125
+          },
+          {
+            "layer": 4,
+            "removed_layers": [
+              4,
+              11,
+              12,
+              15
+            ],
+            "score": 0.265625
+          },
+          {
+            "layer": 5,
+            "removed_layers": [
+              5,
+              11,
+              12,
+              15
+            ],
+            "score": 0.3046875
+          },
+          {
+            "layer": 6,
+            "removed_layers": [
+              6,
+              11,
+              12,
+              15
+            ],
+            "score": 0.265625
+          },
+          {
+            "layer": 7,
+            "removed_layers": [
+              7,
+              11,
+              12,
+              15
+            ],
+            "score": 0.2265625
+          },
+          {
+            "layer": 8,
+            "removed_layers": [
+              8,
+              11,
+              12,
+              15
+            ],
+            "score": 0.296875
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              9,
+              11,
+              12,
+              15
+            ],
+            "score": 0.34375
+          },
+          {
+            "layer": 10,
+            "removed_layers": [
+              10,
+              11,
+              12,
+              15
+            ],
+            "score": 0.2109375
+          },
+          {
+            "layer": 13,
+            "removed_layers": [
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3515625
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              11,
+              12,
+              14,
+              15
+            ],
+            "score": 0.28125
+          }
+        ],
+        "meets_threshold": true,
+        "round_index": 4,
+        "selected_layer": 13,
+        "selected_score": 0.3515625
+      },
+      {
+        "accepted": true,
+        "base_removed_layers": [
+          11,
+          12,
+          13,
+          15
+        ],
+        "candidates": [
+          {
+            "layer": 0,
+            "removed_layers": [
+              0,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.21875
+          },
+          {
+            "layer": 1,
+            "removed_layers": [
+              1,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2265625
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              2,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3125
+          },
+          {
+            "layer": 3,
+            "removed_layers": [
+              3,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.28125
+          },
+          {
+            "layer": 4,
+            "removed_layers": [
+              4,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2265625
+          },
+          {
+            "layer": 5,
+            "removed_layers": [
+              5,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2734375
+          },
+          {
+            "layer": 6,
+            "removed_layers": [
+              6,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.265625
+          },
+          {
+            "layer": 7,
+            "removed_layers": [
+              7,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2578125
+          },
+          {
+            "layer": 8,
+            "removed_layers": [
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.328125
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              9,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2265625
+          },
+          {
+            "layer": 10,
+            "removed_layers": [
+              10,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3125
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "score": 0.2265625
+          }
+        ],
+        "meets_threshold": true,
+        "round_index": 5,
+        "selected_layer": 8,
+        "selected_score": 0.328125
+      },
+      {
+        "accepted": true,
+        "base_removed_layers": [
+          8,
+          11,
+          12,
+          13,
+          15
+        ],
+        "candidates": [
+          {
+            "layer": 0,
+            "removed_layers": [
+              0,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3125
+          },
+          {
+            "layer": 1,
+            "removed_layers": [
+              1,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2421875
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              2,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.28125
+          },
+          {
+            "layer": 3,
+            "removed_layers": [
+              3,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3046875
+          },
+          {
+            "layer": 4,
+            "removed_layers": [
+              4,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2890625
+          },
+          {
+            "layer": 5,
+            "removed_layers": [
+              5,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3125
+          },
+          {
+            "layer": 6,
+            "removed_layers": [
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.234375
+          },
+          {
+            "layer": 7,
+            "removed_layers": [
+              7,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2578125
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              8,
+              9,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.234375
+          },
+          {
+            "layer": 10,
+            "removed_layers": [
+              8,
+              10,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3125
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              8,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "score": 0.2265625
+          }
+        ],
+        "meets_threshold": true,
+        "round_index": 6,
+        "selected_layer": 0,
+        "selected_score": 0.3125
+      },
+      {
+        "accepted": true,
+        "base_removed_layers": [
+          0,
+          8,
+          11,
+          12,
+          13,
+          15
+        ],
+        "candidates": [
+          {
+            "layer": 1,
+            "removed_layers": [
+              0,
+              1,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.21875
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              0,
+              2,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.25
+          },
+          {
+            "layer": 3,
+            "removed_layers": [
+              0,
+              3,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2578125
+          },
+          {
+            "layer": 4,
+            "removed_layers": [
+              0,
+              4,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.28125
+          },
+          {
+            "layer": 5,
+            "removed_layers": [
+              0,
+              5,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.25
+          },
+          {
+            "layer": 6,
+            "removed_layers": [
+              0,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.328125
+          },
+          {
+            "layer": 7,
+            "removed_layers": [
+              0,
+              7,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.296875
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              0,
+              8,
+              9,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2734375
+          },
+          {
+            "layer": 10,
+            "removed_layers": [
+              0,
+              8,
+              10,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2421875
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              0,
+              8,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "score": 0.203125
+          }
+        ],
+        "meets_threshold": true,
+        "round_index": 7,
+        "selected_layer": 6,
+        "selected_score": 0.328125
+      },
+      {
+        "accepted": true,
+        "base_removed_layers": [
+          0,
+          6,
+          8,
+          11,
+          12,
+          13,
+          15
+        ],
+        "candidates": [
+          {
+            "layer": 1,
+            "removed_layers": [
+              0,
+              1,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.1875
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              0,
+              2,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3125
+          },
+          {
+            "layer": 3,
+            "removed_layers": [
+              0,
+              3,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3515625
+          },
+          {
+            "layer": 4,
+            "removed_layers": [
+              0,
+              4,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2265625
+          },
+          {
+            "layer": 5,
+            "removed_layers": [
+              0,
+              5,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3125
+          },
+          {
+            "layer": 7,
+            "removed_layers": [
+              0,
+              6,
+              7,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2421875
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              0,
+              6,
+              8,
+              9,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3125
+          },
+          {
+            "layer": 10,
+            "removed_layers": [
+              0,
+              6,
+              8,
+              10,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.265625
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              0,
+              6,
+              8,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "score": 0.2890625
+          }
+        ],
+        "meets_threshold": true,
+        "round_index": 8,
+        "selected_layer": 3,
+        "selected_score": 0.3515625
+      },
+      {
+        "accepted": true,
+        "base_removed_layers": [
+          0,
+          3,
+          6,
+          8,
+          11,
+          12,
+          13,
+          15
+        ],
+        "candidates": [
+          {
+            "layer": 1,
+            "removed_layers": [
+              0,
+              1,
+              3,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.1875
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              0,
+              2,
+              3,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2578125
+          },
+          {
+            "layer": 4,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.328125
+          },
+          {
+            "layer": 5,
+            "removed_layers": [
+              0,
+              3,
+              5,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.296875
+          },
+          {
+            "layer": 7,
+            "removed_layers": [
+              0,
+              3,
+              6,
+              7,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2578125
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              0,
+              3,
+              6,
+              8,
+              9,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.25
+          },
+          {
+            "layer": 10,
+            "removed_layers": [
+              0,
+              3,
+              6,
+              8,
+              10,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.296875
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              0,
+              3,
+              6,
+              8,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "score": 0.28125
+          }
+        ],
+        "meets_threshold": true,
+        "round_index": 9,
+        "selected_layer": 4,
+        "selected_score": 0.328125
+      },
+      {
+        "accepted": true,
+        "base_removed_layers": [
+          0,
+          3,
+          4,
+          6,
+          8,
+          11,
+          12,
+          13,
+          15
+        ],
+        "candidates": [
+          {
+            "layer": 1,
+            "removed_layers": [
+              0,
+              1,
+              3,
+              4,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.2734375
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              0,
+              2,
+              3,
+              4,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.21875
+          },
+          {
+            "layer": 5,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              5,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3359375
+          },
+          {
+            "layer": 7,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              6,
+              7,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3203125
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              6,
+              8,
+              9,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3046875
+          },
+          {
+            "layer": 10,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              6,
+              8,
+              10,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3046875
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              6,
+              8,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "score": 0.2578125
+          }
+        ],
+        "meets_threshold": true,
+        "round_index": 10,
+        "selected_layer": 5,
+        "selected_score": 0.3359375
+      },
+      {
+        "accepted": true,
+        "base_removed_layers": [
+          0,
+          3,
+          4,
+          5,
+          6,
+          8,
+          11,
+          12,
+          13,
+          15
+        ],
+        "candidates": [
+          {
+            "layer": 1,
+            "removed_layers": [
+              0,
+              1,
+              3,
+              4,
+              5,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.203125
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              0,
+              2,
+              3,
+              4,
+              5,
+              6,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3203125
+          },
+          {
+            "layer": 7,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3359375
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              5,
+              6,
+              8,
+              9,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.21875
+          },
+          {
+            "layer": 10,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              5,
+              6,
+              8,
+              10,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3203125
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              5,
+              6,
+              8,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "score": 0.234375
+          }
+        ],
+        "meets_threshold": true,
+        "round_index": 11,
+        "selected_layer": 7,
+        "selected_score": 0.3359375
+      },
+      {
+        "accepted": true,
+        "base_removed_layers": [
+          0,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          11,
+          12,
+          13,
+          15
+        ],
+        "candidates": [
+          {
+            "layer": 1,
+            "removed_layers": [
+              0,
+              1,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.28125
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              0,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.25
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.1640625
+          },
+          {
+            "layer": 10,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              10,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.3203125
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "score": 0.265625
+          }
+        ],
+        "meets_threshold": true,
+        "round_index": 12,
+        "selected_layer": 10,
+        "selected_score": 0.3203125
+      },
+      {
+        "accepted": false,
+        "base_removed_layers": [
+          0,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          10,
+          11,
+          12,
+          13,
+          15
+        ],
+        "candidates": [
+          {
+            "layer": 1,
+            "removed_layers": [
+              0,
+              1,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              10,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.25
+          },
+          {
+            "layer": 2,
+            "removed_layers": [
+              0,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              10,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.25
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              15
+            ],
+            "score": 0.21875
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              0,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "score": 0.2421875
+          }
+        ],
+        "meets_threshold": false,
+        "round_index": 13,
+        "selected_layer": 1,
+        "selected_score": 0.25
+      }
+    ],
+    "schema_version": 1,
+    "search_config": {
+      "max_remove": 15,
+      "num_layers": 16,
+      "stop_at_threshold": true,
+      "target_remove": null,
+      "threshold": 0.08
+    },
+    "stop_reason": "threshold",
+    "task_search": {
+      "docs_sha256": "995d7e2162b775ef73828434b4045016e1242ccfbbf574308910b57debd519ca",
+      "inputs_sha256": "ca679ecabf3dd5d91bd32cb952cc06c28ad9ff665d33539114901513f5cd1021",
+      "metric": "accuracy",
+      "num_samples": 128,
+      "split": "validation",
+      "task": "mmlu"
+    },
+    "threshold": 0.08,
+    "threshold_final": {
+      "removed_layers": [
+        0,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        15
+      ],
+      "score": 0.3203125
+    },
+    "threshold_score": 0.310625
+  },
+  "method": "tale",
+  "model": "/data/meta-llama/Llama-3.2-1B-Instruct",
+  "provenance": {
+    "apply_chat_template": false,
+    "datasets": "4.8.5",
+    "local_artifact_count": 6,
+    "local_artifacts_sha256": "0352d010db58bd2af274af3a6ea35b0835a7ef04a35a193f03c541e69c70700a",
+    "model_batch_size": 1,
+    "model_class": "LlamaForCausalLM",
+    "model_dtype": "torch.bfloat16",
+    "model_revision": null,
+    "model_source": "local",
+    "python": "3.12.13",
+    "tokenizer_class": "PreTrainedTokenizerFast",
+    "tokenizer_name_or_path": "/data/meta-llama/Llama-3.2-1B-Instruct",
+    "torch": "2.7.1+cu126",
+    "transformers": "4.57.6"
+  },
+  "schema_version": 1,
+  "scope": "mmlu",
+  "search_config": {
+    "dataset_path": "/data1/qrh/huggingface/datasets/source/cais/mmlu",
+    "execution": {
+      "apply_chat_template": false,
+      "datasets": "4.8.5",
+      "local_artifacts_sha256": "0352d010db58bd2af274af3a6ea35b0835a7ef04a35a193f03c541e69c70700a",
+      "model_batch_size": 1,
+      "model_class": "LlamaForCausalLM",
+      "model_dtype": "torch.bfloat16",
+      "model_revision": null,
+      "model_source": "local",
+      "tokenizer_class": "PreTrainedTokenizerFast",
+      "tokenizer_name_or_path": "/data/meta-llama/Llama-3.2-1B-Instruct",
+      "torch": "2.7.1+cu126",
+      "transformers": "4.57.6"
+    },
+    "max_remove": 15,
+    "metric": "accuracy",
+    "num_layers": 16,
+    "search_docs_sha256": "995d7e2162b775ef73828434b4045016e1242ccfbbf574308910b57debd519ca",
+    "search_inputs_sha256": "ca679ecabf3dd5d91bd32cb952cc06c28ad9ff665d33539114901513f5cd1021",
+    "search_max_samples": 128,
+    "search_num_samples": 128,
+    "search_split": "validation",
+    "seed": 42,
+    "stop_at_threshold": true,
+    "target_remove": null,
+    "task": "mmlu",
+    "task_num_fewshot": 5,
+    "task_seed": 42,
+    "task_version": 3,
+    "threshold": 0.08
+  }
+}

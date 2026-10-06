@@ -1,0 +1,67 @@
+{
+  "model": "Llama-3.2-1B-Instruct",
+  "strategy": "shortgpt",
+  "task": "winogrande",
+  "evaluation_config": {
+    "model": "Llama-3.2-1B-Instruct",
+    "strategy": {
+      "name": "shortgpt",
+      "kwargs": {
+        "prune_ratio": 0.25,
+        "num_remove": 4,
+        "dataset_path": "/data1/qrh/huggingface/datasets/source/emozilla/pg19",
+        "split": "validation",
+        "max_samples": null,
+        "sequence_length": 256,
+        "search_batch_size": 1,
+        "seed": 42
+      },
+      "config": {
+        "method": "shortgpt",
+        "num_layers": 16,
+        "num_removed": 4,
+        "selected_layers": [
+          11,
+          12,
+          13,
+          14
+        ],
+        "selected_layers_1based": [
+          12,
+          13,
+          14,
+          15
+        ],
+        "layer_id_space": "original_model_0_based",
+        "trace_path": "/data2/qrh/code/LayerSkip/results/baselines_20261003_0200/Llama-3.2-1B-Instruct/pruning/shortgpt/global/bb9f3fd03376.json",
+        "variant": null,
+        "physical_pruning": true
+      }
+    },
+    "task": {
+      "name": "winogrande",
+      "version": 2,
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 0,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "cuda",
+      "dtype": "auto",
+      "trust_remote_code": false,
+      "apply_chat_template": false
+    }
+  },
+  "results": {
+    "accuracy": 0.5169692186266772
+  },
+  "elapsed_seconds": 23.22,
+  "samples_file": "/data2/qrh/code/LayerSkip/results/baselines_20261003_0200/Llama-3.2-1B-Instruct/winogrande/shortgpt/5c64e3271c43.jsonl"
+}

@@ -1,0 +1,82 @@
+{
+  "model": "Meta-Llama-3-8B-Instruct",
+  "strategy": "tale",
+  "task": "mmlu",
+  "evaluation_config": {
+    "model": "Meta-Llama-3-8B-Instruct",
+    "strategy": {
+      "name": "tale",
+      "kwargs": {
+        "threshold": 0.08,
+        "search_max_samples": 128,
+        "max_remove": null,
+        "target_remove": null,
+        "variant": "threshold_final",
+        "stop_at_threshold": true,
+        "seed": 42
+      },
+      "config": {
+        "method": "tale",
+        "num_layers": 32,
+        "num_removed": 12,
+        "selected_layers": [
+          8,
+          15,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          26,
+          28,
+          31
+        ],
+        "selected_layers_1based": [
+          9,
+          16,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          27,
+          29,
+          32
+        ],
+        "layer_id_space": "original_model_0_based",
+        "trace_path": "/data2/qrh/code/LayerSkip/results/baselines_20261003_0200/Meta-Llama-3-8B-Instruct/pruning/tale/mmlu/7c2356475130.json",
+        "variant": "threshold_final",
+        "physical_pruning": true
+      }
+    },
+    "task": {
+      "name": "mmlu",
+      "version": 3,
+      "kwargs": {
+        "seed": 42
+      },
+      "resolved_kwargs": {
+        "num_fewshot": 5,
+        "max_samples": null,
+        "seed": 42
+      }
+    },
+    "runtime": {
+      "batch_size": 1,
+      "device": "cuda",
+      "requested_device": "cuda",
+      "dtype": "auto",
+      "trust_remote_code": false,
+      "apply_chat_template": false
+    }
+  },
+  "results": {
+    "accuracy": 0.4955134596211366
+  },
+  "elapsed_seconds": 11528.31,
+  "samples_file": "/data2/qrh/code/LayerSkip/results/baselines_20261003_0200/Meta-Llama-3-8B-Instruct/mmlu/tale/b11c1c7b54e9.jsonl"
+}
