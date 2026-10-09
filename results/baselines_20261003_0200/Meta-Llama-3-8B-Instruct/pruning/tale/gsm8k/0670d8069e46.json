@@ -10,16 +10,18 @@
     },
     "bsba": {
       "removed_layers": [
-        27
+        27,
+        28
       ],
-      "score": 0.8046875
+      "score": 0.78125
     },
     "budget": null,
     "budget_status": "not_requested",
-    "completed": false,
+    "completed": true,
     "num_layers": 32,
     "removal_order": [
-      27
+      27,
+      28
     ],
     "rounds": [
       {
@@ -257,6 +259,7 @@
         "selected_score": 0.8046875
       },
       {
+        "accepted": true,
         "base_removed_layers": [
           27
         ],
@@ -324,20 +327,207 @@
               27
             ],
             "score": 0.3359375
+          },
+          {
+            "layer": 8,
+            "removed_layers": [
+              8,
+              27
+            ],
+            "score": 0.5703125
+          },
+          {
+            "layer": 9,
+            "removed_layers": [
+              9,
+              27
+            ],
+            "score": 0.421875
+          },
+          {
+            "layer": 10,
+            "removed_layers": [
+              10,
+              27
+            ],
+            "score": 0.4453125
+          },
+          {
+            "layer": 11,
+            "removed_layers": [
+              11,
+              27
+            ],
+            "score": 0.4140625
+          },
+          {
+            "layer": 12,
+            "removed_layers": [
+              12,
+              27
+            ],
+            "score": 0.328125
+          },
+          {
+            "layer": 13,
+            "removed_layers": [
+              13,
+              27
+            ],
+            "score": 0.25
+          },
+          {
+            "layer": 14,
+            "removed_layers": [
+              14,
+              27
+            ],
+            "score": 0.484375
+          },
+          {
+            "layer": 15,
+            "removed_layers": [
+              15,
+              27
+            ],
+            "score": 0.234375
+          },
+          {
+            "layer": 16,
+            "removed_layers": [
+              16,
+              27
+            ],
+            "score": 0.453125
+          },
+          {
+            "layer": 17,
+            "removed_layers": [
+              17,
+              27
+            ],
+            "score": 0.578125
+          },
+          {
+            "layer": 18,
+            "removed_layers": [
+              18,
+              27
+            ],
+            "score": 0.265625
+          },
+          {
+            "layer": 19,
+            "removed_layers": [
+              19,
+              27
+            ],
+            "score": 0.6171875
+          },
+          {
+            "layer": 20,
+            "removed_layers": [
+              20,
+              27
+            ],
+            "score": 0.7265625
+          },
+          {
+            "layer": 21,
+            "removed_layers": [
+              21,
+              27
+            ],
+            "score": 0.7734375
+          },
+          {
+            "layer": 22,
+            "removed_layers": [
+              22,
+              27
+            ],
+            "score": 0.7265625
+          },
+          {
+            "layer": 23,
+            "removed_layers": [
+              23,
+              27
+            ],
+            "score": 0.7109375
+          },
+          {
+            "layer": 24,
+            "removed_layers": [
+              24,
+              27
+            ],
+            "score": 0.703125
+          },
+          {
+            "layer": 25,
+            "removed_layers": [
+              25,
+              27
+            ],
+            "score": 0.71875
+          },
+          {
+            "layer": 26,
+            "removed_layers": [
+              26,
+              27
+            ],
+            "score": 0.7421875
+          },
+          {
+            "layer": 28,
+            "removed_layers": [
+              27,
+              28
+            ],
+            "score": 0.78125
+          },
+          {
+            "layer": 29,
+            "removed_layers": [
+              27,
+              29
+            ],
+            "score": 0.5703125
+          },
+          {
+            "layer": 30,
+            "removed_layers": [
+              27,
+              30
+            ],
+            "score": 0.46875
+          },
+          {
+            "layer": 31,
+            "removed_layers": [
+              27,
+              31
+            ],
+            "score": 0.65625
           }
         ],
-        "round_index": 2
+        "meets_threshold": true,
+        "round_index": 2,
+        "selected_layer": 28,
+        "selected_score": 0.78125
       }
     ],
     "schema_version": 1,
     "search_config": {
-      "max_remove": 31,
+      "max_remove": 2,
       "num_layers": 32,
       "stop_at_threshold": true,
       "target_remove": null,
       "threshold": 0.08
     },
-    "stop_reason": null,
+    "stop_reason": "max_remove",
     "task_search": {
       "docs_sha256": "54afb2ec7dd5f37ad6f5753a6bae68f985d303c0b73e02687dcdb38aa208c9ad",
       "inputs_sha256": "565b00eefb64236d900094e7f4c524cd10ae99e43d172a534008ba826b2bc463",
@@ -349,9 +539,10 @@
     "threshold": 0.08,
     "threshold_final": {
       "removed_layers": [
-        27
+        27,
+        28
       ],
-      "score": 0.8046875
+      "score": 0.78125
     },
     "threshold_score": 0.6778125
   },
@@ -391,7 +582,7 @@
       "torch": "2.7.1+cu126",
       "transformers": "4.57.6"
     },
-    "max_remove": 31,
+    "max_remove": 2,
     "metric": "exact_match",
     "num_layers": 32,
     "search_docs_sha256": "54afb2ec7dd5f37ad6f5753a6bae68f985d303c0b73e02687dcdb38aa208c9ad",
@@ -407,5 +598,11 @@
     "task_seed": 42,
     "task_version": 1,
     "threshold": 0.08
+  },
+  "user_requested_stop": {
+    "after_round": 2,
+    "at": "2026-10-09T12:12:41.694654+00:00",
+    "original_trace_archive": "/data2/qrh/code/LayerSkip/logs/baselines_20261003_0200/stop_after_round2_20261009T121145Z/3bf1bad24205.json",
+    "reason": "User requested stopping after round 2 to avoid further search cost."
   }
 }
